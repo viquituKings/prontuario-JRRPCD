@@ -552,6 +552,63 @@ export function formatarDataHoraBR(dataIso) {
   }
 }
 
+/**
+ * Extrai a lista de dispositivos deferidos de uma evolução de forma estruturada.
+ * Suporta array `dispositivosDeferidos`, string `descricaoDispositivo` e texto em `descricao`.
+ */
+export function extrairDispositivosDeferidos(evo) {
+  if (!evo) return [];
+
+  // 1. Se já está salvo como array estruturado
+  if (Array.isArray(evo.dispositivosDeferidos) && evo.dispositivosDeferidos.length > 0) {
+    return evo.dispositivosDeferidos
+      .filter((d) => d && (d.dispositivo || d.nome))
+      .map((d) => ({
+        dispositivo: (d.dispositivo || d.nome || '').trim(),
+        data: d.data ? formatarDataBR(d.data) : ''
+      }));
+  }
+
+  // 2. Se está como string em descricaoDispositivo
+  if (typeof evo.descricaoDispositivo === 'string' && evo.descricaoDispositivo.trim()) {
+    return evo.descricaoDispositivo
+      .split(/[;|\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((text) => {
+        const match = text.match(/^(.*?)(?:\s*\((?:Deferido em:\s*)?(\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})\))?$/i);
+        if (match && match[1]?.trim()) {
+          return {
+            dispositivo: match[1].trim(),
+            data: match[2] ? formatarDataBR(match[2].trim()) : ''
+          };
+        }
+        return { dispositivo: text, data: '' };
+      });
+  }
+
+  // 3. Se está como string em descricao iniciando por "Dispositivo(s) Deferido(s):"
+  if (typeof evo.descricao === 'string' && evo.descricao.includes('Dispositivo(s) Deferido(s):')) {
+    const raw = evo.descricao.replace(/Dispositivo\(s\)\s*Deferido\(s\):\s*/i, '');
+    return raw
+      .split(/[;|\n]/)
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .map((text) => {
+        const match = text.match(/^(.*?)(?:\s*\((\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})\))?$/i);
+        if (match && match[1]?.trim()) {
+          return {
+            dispositivo: match[1].trim(),
+            data: match[2] ? formatarDataBR(match[2].trim()) : ''
+          };
+        }
+        return { dispositivo: text, data: '' };
+      });
+  }
+
+  return [];
+}
+
 // Pacientes de demonstração com os campos atualizados
 export const PACIENTES_DEMO = [
   {

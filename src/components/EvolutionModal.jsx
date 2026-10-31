@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  X, 
-  Calendar, 
-  Stethoscope, 
-  Save, 
-  Accessibility, 
-  PlusCircle, 
-  Trash2, 
-  Brain, 
+import {
+  X,
+  Calendar,
+  Stethoscope,
+  Save,
+  Accessibility,
+  PlusCircle,
+  Trash2,
+  Brain,
   Sparkles,
   FileText
 } from 'lucide-react';
@@ -52,9 +52,9 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
 
   const initialFormState = () => ({
     // Caso 1: Pacientes OPM (lista de dispositivo deferido + data)
-    dispositivos: [{ 
-      dispositivo: (isOPM && opmsSolicitadasDoPaciente.length > 0) ? opmsSolicitadasDoPaciente[0].solicitada.toUpperCase() : '', 
-      data: getHojeIsoDate() 
+    dispositivos: [{
+      dispositivo: (isOPM && opmsSolicitadasDoPaciente.length > 0) ? opmsSolicitadasDoPaciente[0].solicitada.toUpperCase() : '',
+      data: getHojeIsoDate()
     }],
     // Caso 2: Categoria Intelectual (CER II ou CRTEA)
     opcaoIntelectual: '',
@@ -93,9 +93,9 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   const handleUpdateDispositivo = (index, field, value) => {
     setFormData((prev) => {
       const updated = [...prev.dispositivos];
-      updated[index] = { 
-        ...updated[index], 
-        [field]: field === 'dispositivo' ? value.toUpperCase() : value 
+      updated[index] = {
+        ...updated[index],
+        [field]: field === 'dispositivo' ? value.toUpperCase() : value
       };
       return { ...prev, dispositivos: updated };
     });
@@ -104,9 +104,9 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   const handleRemoveDispositivo = (index) => {
     setFormData((prev) => {
       const updated = prev.dispositivos.filter((_, i) => i !== index);
-      return { 
-        ...prev, 
-        dispositivos: updated.length > 0 ? updated : [{ dispositivo: '', data: getHojeIsoDate() }] 
+      return {
+        ...prev,
+        dispositivos: updated.length > 0 ? updated : [{ dispositivo: '', data: getHojeIsoDate() }]
       };
     });
   };
@@ -183,7 +183,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
       resetForm();
       onClose();
     } catch (err) {
-      setErrorMsg('Erro ao salvar prontuário médico: ' + (err.message || 'Erro desconhecido'));
+      setErrorMsg('Erro ao salvar prontuário: ' + (err.message || 'Erro desconhecido'));
     } finally {
       setIsSubmitting(false);
     }
@@ -192,13 +192,13 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
-        
+
         {/* Cabeçalho */}
         <div className="px-6 py-4 bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-700 text-white flex items-center justify-between">
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Stethoscope className="w-5 h-5 text-emerald-200" />
-              <span>Prontuário Médico</span>
+              <span>Prontuário</span>
             </h2>
             <p className="text-xs text-teal-100 flex flex-wrap items-center gap-2 mt-0.5">
               <span>Paciente: <strong className="text-white">{patient.nome}</strong></span>
@@ -291,8 +291,8 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
 
               <div className="space-y-3">
                 {formData.dispositivos.map((item, idx) => (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl items-end relative shadow-sm"
                   >
                     {/* Dispositivo Deferido */}
@@ -366,11 +366,10 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
                 {/* Opção CER II */}
-                <label className={`p-4 rounded-2xl border-2 flex items-center gap-3.5 cursor-pointer transition select-none ${
-                  formData.opcaoIntelectual === 'CER II'
+                <label className={`p-4 rounded-2xl border-2 flex items-center gap-3.5 cursor-pointer transition select-none ${formData.opcaoIntelectual === 'CER II'
                     ? 'border-purple-600 bg-white shadow-md ring-2 ring-purple-500/20 text-purple-950'
                     : 'border-purple-200/80 bg-white/70 hover:bg-white text-slate-700 hover:border-purple-300'
-                }`}>
+                  }`}>
                   <input
                     type="radio"
                     name="opcaoIntelectual"
@@ -386,11 +385,10 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
                 </label>
 
                 {/* Opção (CRTEA) */}
-                <label className={`p-4 rounded-2xl border-2 flex items-center gap-3.5 cursor-pointer transition select-none ${
-                  formData.opcaoIntelectual === 'CRTEA'
+                <label className={`p-4 rounded-2xl border-2 flex items-center gap-3.5 cursor-pointer transition select-none ${formData.opcaoIntelectual === 'CRTEA'
                     ? 'border-purple-600 bg-white shadow-md ring-2 ring-purple-500/20 text-purple-950'
                     : 'border-purple-200/80 bg-white/70 hover:bg-white text-slate-700 hover:border-purple-300'
-                }`}>
+                  }`}>
                   <input
                     type="radio"
                     name="opcaoIntelectual"

@@ -1,17 +1,17 @@
 import React from 'react';
-import { 
-  X, 
-  Calendar, 
-  Phone, 
-  MapPin, 
-  Building2, 
-  Stethoscope, 
-  Accessibility, 
-  FileText, 
-  Clock, 
-  PlusCircle, 
-  Printer, 
-  Edit3, 
+import {
+  X,
+  Calendar,
+  Phone,
+  MapPin,
+  Building2,
+  Stethoscope,
+  Accessibility,
+  FileText,
+  Clock,
+  PlusCircle,
+  Printer,
+  Edit3,
   Trash2,
   UserCheck,
   Heart,
@@ -21,13 +21,14 @@ import {
   Zap,
   Brain
 } from 'lucide-react';
-import { 
-  formatarDataHoraBR, 
+import {
+  formatarDataHoraBR,
   formatarDataBR,
-  isMotorizadaSolicitada, 
+  isMotorizadaSolicitada,
   verificarCompatibilidadeMotorizada,
   getBadgeColorServico,
-  temOpmSolicitada
+  temOpmSolicitada,
+  extrairDispositivosDeferidos
 } from '../types';
 
 export default function PatientDetailsModal({
@@ -47,8 +48,8 @@ export default function PatientDetailsModal({
   const cidsList = patient.cid_list && patient.cid_list.length > 0
     ? patient.cid_list
     : patient.cid
-    ? patient.cid.split(';').map((c) => c.trim()).filter(Boolean)
-    : [];
+      ? patient.cid.split(';').map((c) => c.trim()).filter(Boolean)
+      : [];
 
   const hasMotorizada = isMotorizadaSolicitada(opms, patient.tipoOpm);
   const statusMotorizada = hasMotorizada ? verificarCompatibilidadeMotorizada(cidsList) : null;
@@ -61,7 +62,7 @@ export default function PatientDetailsModal({
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-100 flex flex-col max-h-[94vh] animate-in fade-in zoom-in-95 duration-150">
-        
+
         {/* Topo com Identificação */}
         <div className="p-6 bg-slate-900 text-white relative">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -74,7 +75,7 @@ export default function PatientDetailsModal({
                   {servico}
                 </span>
               </div>
-              
+
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
                 <span>Data Ent.: <strong className="text-white">{patient.data_entrada || patient.dataEntrada || '-'}</strong></span>
                 <span>•</span>
@@ -95,7 +96,7 @@ export default function PatientDetailsModal({
               <button
                 onClick={() => onPrintPatient(patient)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs font-medium rounded-lg transition"
-                title="Imprimir Prontuário Médico"
+                title="Imprimir Prontuário"
               >
                 <Printer className="w-3.5 h-3.5" />
                 <span>Imprimir</span>
@@ -142,10 +143,10 @@ export default function PatientDetailsModal({
               <Phone className="w-3.5 h-3.5 text-slate-400" />
               <span>{patient.telefone || 'Não informado'}</span>
               {whatsappUrl && (
-                <a 
-                  href={whatsappUrl} 
-                  target="_blank" 
-                  rel="noreferrer" 
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noreferrer"
                   title="Abrir no WhatsApp"
                   className="text-emerald-600 hover:text-emerald-700 font-bold ml-1"
                 >
@@ -171,7 +172,7 @@ export default function PatientDetailsModal({
 
         {/* Conteúdo com Scroll */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
-          
+
           {/* CID e OPMs Solicitadas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* CID(s) */}
@@ -185,7 +186,7 @@ export default function PatientDetailsModal({
               {cidsList.length > 0 ? (
                 <div className="space-y-1.5 mt-2">
                   {cidsList.map((c, idx) => (
-                    <div 
+                    <div
                       key={idx}
                       className="px-2.5 py-1.5 bg-white rounded-xl border border-blue-200 text-blue-950 font-bold text-xs shadow-sm flex items-center gap-2"
                     >
@@ -209,18 +210,31 @@ export default function PatientDetailsModal({
               </div>
               {temOpmSolicitada(patient) ? (
                 opms.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5 mt-2">
+                  <div className="space-y-1.5 mt-2">
                     {opms.map((o, idx) => (
-                      <span 
+                      <div
                         key={idx}
-                        className="px-2.5 py-1 bg-white rounded-lg border border-indigo-200 text-indigo-900 font-bold text-xs shadow-sm"
+                        className="px-3 py-2 bg-white rounded-xl border border-indigo-200 text-indigo-950 font-bold text-xs shadow-sm flex items-center gap-2"
                       >
-                        {o.tipo}: {o.solicitada}
-                      </span>
+                        <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-800 text-[10px] flex items-center justify-center shrink-0 font-bold">
+                          {idx + 1}
+                        </span>
+                        <div className="truncate">
+                          <span className="text-indigo-600 font-medium">{o.tipo}: </span>
+                          <span className="font-bold text-slate-900 uppercase">{o.solicitada}</span>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-sm font-bold text-slate-900 mt-1">{patient.tipoOpm}</p>
+                  <div className="space-y-1.5 mt-2">
+                    <div className="px-3 py-2 bg-white rounded-xl border border-indigo-200 text-indigo-950 font-bold text-xs shadow-sm flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-800 text-[10px] flex items-center justify-center shrink-0 font-bold">
+                        1
+                      </span>
+                      <span className="font-bold text-slate-900 uppercase">{patient.tipoOpm}</span>
+                    </div>
+                  </div>
                 )
               ) : (
                 <p className="text-xs text-slate-400 italic mt-1">Nenhuma OPM solicitada para este paciente.</p>
@@ -280,7 +294,7 @@ export default function PatientDetailsModal({
               <div>
                 <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
                   <Clock className="w-5 h-5 text-teal-600" />
-                  <span>Prontuário Médico & Evoluções</span>
+                  <span>Prontuário & Evoluções</span>
                 </h3>
                 <p className="text-xs text-slate-500">
                   Registro de prontuários, atendimentos e condutas clínicas
@@ -292,7 +306,7 @@ export default function PatientDetailsModal({
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl shadow-sm transition hover:scale-[1.02]"
               >
                 <PlusCircle className="w-4 h-4" />
-                <span>Novo Prontuário Médico</span>
+                <span>Novo Prontuário</span>
               </button>
             </div>
 
@@ -300,7 +314,7 @@ export default function PatientDetailsModal({
               <div className="text-center py-10 px-4 bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
                 <Clock className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                 <p className="text-xs font-semibold text-slate-600">
-                  Nenhum registro de prontuário médico adicionado para este paciente ainda.
+                  Nenhum registro de prontuário adicionado para este paciente ainda.
                 </p>
                 <p className="text-[11px] text-slate-400 mt-1">
                   Clique no botão acima para registrar a primeira anotação no prontuário.
@@ -338,7 +352,7 @@ export default function PatientDetailsModal({
                           )}
                           <button
                             onClick={() => {
-                              if (confirm('Tem certeza que deseja excluir esta anotação do prontuário médico?')) {
+                              if (confirm('Tem certeza que deseja excluir esta anotação do prontuário?')) {
                                 onDeleteEvolution(patient.id, evo.id);
                               }
                             }}
@@ -351,38 +365,42 @@ export default function PatientDetailsModal({
                       </div>
 
                       {/* Caso 1: Dispositivos Deferidos (OPM) */}
-                      {evo.dispositivosDeferidos && Array.isArray(evo.dispositivosDeferidos) && evo.dispositivosDeferidos.length > 0 ? (
-                        <div className="bg-indigo-50/70 border border-indigo-200 p-3 rounded-xl space-y-2">
-                          <strong className="text-indigo-950 text-xs font-bold flex items-center gap-1.5 uppercase tracking-wide">
-                            <Accessibility className="w-4 h-4 text-indigo-600" />
-                            Dispositivo(s) Deferido(s):
-                          </strong>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                            {evo.dispositivosDeferidos.map((d, dIdx) => (
-                              <div key={dIdx} className="bg-white border border-indigo-200/80 rounded-lg p-2.5 flex items-center justify-between shadow-xs">
-                                <span className="font-bold text-xs text-slate-900 uppercase">
-                                  {d.dispositivo}
-                                </span>
-                                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
-                                  {formatarDataBR(d.data)}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        evo.descricaoDispositivo && (
-                          <div className="bg-indigo-50/70 border border-indigo-200 p-2.5 rounded-lg text-xs space-y-0.5">
-                            <strong className="text-indigo-950 block font-bold flex items-center gap-1.5">
-                              <Accessibility className="w-3.5 h-3.5 text-indigo-600" />
-                              Descrição do Dispositivo:
+                      {(() => {
+                        const deferidos = extrairDispositivosDeferidos(evo);
+                        if (deferidos.length === 0) return null;
+
+                        return (
+                          <div className="p-3.5 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-2">
+                            <strong className="text-indigo-950 text-xs font-bold flex items-center gap-1.5 uppercase tracking-wide">
+                              <Accessibility className="w-4 h-4 text-indigo-600" />
+                              Dispositivos Deferidos ({deferidos.length})
                             </strong>
-                            <p className="text-indigo-900 whitespace-pre-wrap font-medium">
-                              {evo.descricaoDispositivo}
-                            </p>
+
+                            <div className="space-y-1.5 mt-1.5">
+                              {deferidos.map((d, dIdx) => (
+                                <div
+                                  key={dIdx}
+                                  className="px-3 py-2 bg-white rounded-xl border border-indigo-200 text-indigo-950 font-bold text-xs shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-1.5"
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-800 text-[10px] flex items-center justify-center shrink-0 font-bold">
+                                      {dIdx + 1}
+                                    </span>
+                                    <span className="font-bold text-xs text-slate-900 uppercase">
+                                      {d.dispositivo}
+                                    </span>
+                                  </div>
+                                  {d.data && (
+                                    <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-md border border-indigo-200 shrink-0 self-start sm:self-auto">
+                                      Deferido em: {d.data}
+                                    </span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
                           </div>
-                        )
-                      )}
+                        );
+                      })()}
 
                       {/* Caso 2: Categoria Intelectual (CER II ou CRTEA) */}
                       {evo.opcaoIntelectual && (
@@ -402,7 +420,10 @@ export default function PatientDetailsModal({
                       )}
 
                       {/* Caso 3 / Texto da Evolução (apenas se não for OPM estruturado nem Intelectual) */}
-                      {evo.descricao && !evo.dispositivosDeferidos && !evo.opcaoIntelectual && (
+                      {evo.descricao && 
+                       !evo.opcaoIntelectual && 
+                       !evo.descricao.startsWith('Dispositivo(s) Deferido(s):') && 
+                       extrairDispositivosDeferidos(evo).length === 0 && (
                         <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-medium">
                           {evo.descricao}
                         </p>
