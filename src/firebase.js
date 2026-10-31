@@ -190,10 +190,18 @@ export async function salvarPaciente(pacienteData) {
     payload.createdAt = nowIso;
   }
 
+  // Remove qualquer propriedade undefined antes de enviar ao Firestore
+  const cleanPayload = {};
+  for (const [k, v] of Object.entries(payload)) {
+    if (v !== undefined) {
+      cleanPayload[k] = v;
+    }
+  }
+
   if (db) {
     try {
       const docRef = doc(db, 'pacientes', id);
-      await setDoc(docRef, payload, { merge: true });
+      await setDoc(docRef, cleanPayload, { merge: true });
       return { success: true, id, mode: 'firestore' };
     } catch (err) {
       console.error('Erro ao salvar no Firestore:', err);
@@ -204,9 +212,9 @@ export async function salvarPaciente(pacienteData) {
     const locais = getLocalPacientes();
     const index = locais.findIndex((p) => p.id === id);
     if (index >= 0) {
-      locais[index] = payload;
+      locais[index] = cleanPayload;
     } else {
-      locais.unshift(payload);
+      locais.unshift(cleanPayload);
     }
     saveLocalPacientes(locais);
     // Dispara evento para atualização imediata dos componentes
@@ -239,19 +247,26 @@ export async function excluirPaciente(pacienteId) {
 }
 
 /**
- * Adiciona uma evolução ao prontuário do paciente
+ * Adiciona um registro de prontuário médico / evolução ao paciente
  */
 export async function adicionarEvolucao(pacienteId, evolucaoData) {
   const db = getDb();
   const novaEvolucao = {
-    id: `evo_${Date.now()}`,
+    id: `evo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     dataHora: evolucaoData.dataHora || new Date().toISOString(),
-    profissional: evolucaoData.profissional,
-    tipoAtendimento: evolucaoData.tipoAtendimento,
-    descricao: evolucaoData.descricao,
+    descricaoDispositivo: evolucaoData.descricaoDispositivo || '',
+    descricao: evolucaoData.descricao || '',
     conduta: evolucaoData.conduta || '',
+    profissional: evolucaoData.profissional || '',
+    tipoAtendimento: evolucaoData.tipoAtendimento || '',
     createdAt: new Date().toISOString()
   };
+
+  // Garante que nenhum campo de novaEvolucao seja undefined (exigência estrita do Firestore)
+  const cleanNovaEvolucao = {};
+  for (const [k, v] of Object.entries(novaEvolucao)) {
+    cleanNovaEvolucao[k] = v !== undefined ? v : '';
+  }
 
   if (db) {
     try {
@@ -259,15 +274,30 @@ export async function adicionarEvolucao(pacienteId, evolucaoData) {
       const snap = await getDoc(pacienteRef);
       if (snap.exists()) {
         const dados = snap.data();
-        const evolucoes = [novaEvolucao, ...(dados.evolucoes || [])];
+        const listaExistente = Array.isArray(dados.evolucoes) ? dados.evolucoes : [];
+        // Limpa possíveis valores undefined pré-existentes nas evoluções
+        const evolucoesSanitizadas = [cleanNovaEvolucao, ...listaExistente].map((evo) => {
+          const itemLimpo = {};
+          for (const [key, val] of Object.entries(evo)) {
+            itemLimpo[key] = val !== undefined ? val : '';
+          }
+          return itemLimpo;
+        });
+
         await updateDoc(pacienteRef, {
-          evolucoes,
+          evolucoes: evolucoesSanitizadas,
           updatedAt: new Date().toISOString()
         });
+      } else {
+        await setDoc(pacienteRef, {
+          id: pacienteId,
+          evolucoes: [cleanNovaEvolucao],
+          updatedAt: new Date().toISOString()
+        }, { merge: true });
       }
-      return { success: true, evolucao: novaEvolucao, mode: 'firestore' };
+      return { success: true, evolucao: cleanNovaEvolucao, mode: 'firestore' };
     } catch (err) {
-      console.error('Erro ao adicionar evolução no Firestore:', err);
+      console.error('Erro ao adicionar prontuário médico no Firestore:', err);
       throw err;
     }
   } else {
@@ -275,12 +305,12 @@ export async function adicionarEvolucao(pacienteId, evolucaoData) {
     const paciente = locais.find((p) => p.id === pacienteId);
     if (paciente) {
       if (!paciente.evolucoes) paciente.evolucoes = [];
-      paciente.evolucoes.unshift(novaEvolucao);
+      paciente.evolucoes.unshift(cleanNovaEvolucao);
       paciente.updatedAt = new Date().toISOString();
       saveLocalPacientes(locais);
       window.dispatchEvent(new Event('storage'));
     }
-    return { success: true, evolucao: novaEvolucao, mode: 'local' };
+    return { success: true, evolucao: cleanNovaEvolucao, mode: 'local' };
   }
 }
 
@@ -296,7 +326,15 @@ export async function excluirEvolucao(pacienteId, evolucaoId) {
       const snap = await getDoc(pacienteRef);
       if (snap.exists()) {
         const dados = snap.data();
-        const evolucoes = (dados.evolucoes || []).filter((e) => e.id !== evolucaoId);
+        const evolucoes = (dados.evolucoes || [])
+          .filter((e) => e.id !== evolucaoId)
+          .map((evo) => {
+            const itemLimpo = {};
+            for (const [key, val] of Object.entries(evo)) {
+              itemLimpo[key] = val !== undefined ? val : '';
+            }
+            return itemLimpo;
+          });
         await updateDoc(pacienteRef, {
           evolucoes,
           updatedAt: new Date().toISOString()
