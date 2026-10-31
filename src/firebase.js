@@ -15,6 +15,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { PACIENTES_DEMO } from './types';
+import { registrarAuditoria } from './auth';
 
 const STORAGE_KEY_CONFIG = 'jrrpcd_firebase_config';
 const STORAGE_KEY_LOCAL_DATA = 'jrrpcd_local_pacientes';
@@ -172,12 +173,13 @@ export function subscribePacientes(onUpdate, onError) {
 }
 
 /**
- * Cria ou atualiza um paciente
+ * Cria ou atualiza um paciente com carimbo de auditoria
  */
-export async function salvarPaciente(pacienteData) {
+export async function salvarPaciente(pacienteData, usuario) {
   const db = getDb();
   const id = pacienteData.id || (db ? doc(collection(db, 'pacientes')).id : `paciente_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`);
   const nowIso = new Date().toISOString();
+  const isNovo = !pacienteData.id;
 
   const payload = {
     ...pacienteData,
@@ -186,9 +188,27 @@ export async function salvarPaciente(pacienteData) {
     evolucoes: pacienteData.evolucoes || []
   };
 
-  if (!payload.createdAt) {
+  // Carimbo do usuário e data/hora
+  const userUsername = usuario?.username || 'sistema';
+  const userNome = usuario?.nome || usuario?.username || 'Sistema';
+
+  if (isNovo) {
     payload.createdAt = nowIso;
+    payload.criadoPor = userUsername;
+    payload.criadoPorNome = userNome;
+    payload.criadoEm = nowIso;
+  } else {
+    // Mantém criação original caso exista
+    payload.createdAt = pacienteData.createdAt || nowIso;
+    payload.criadoPor = pacienteData.criadoPor || userUsername;
+    payload.criadoPorNome = pacienteData.criadoPorNome || userNome;
+    payload.criadoEm = pacienteData.criadoEm || pacienteData.createdAt || nowIso;
   }
+
+  // Carimbo da última alteração
+  payload.atualizadoPor = userUsername;
+  payload.atualizadoPorNome = userNome;
+  payload.atualizadoEm = nowIso;
 
   // Remove qualquer propriedade undefined antes de enviar ao Firestore
   const cleanPayload = {};
@@ -202,7 +222,6 @@ export async function salvarPaciente(pacienteData) {
     try {
       const docRef = doc(db, 'pacientes', id);
       await setDoc(docRef, cleanPayload, { merge: true });
-      return { success: true, id, mode: 'firestore' };
     } catch (err) {
       console.error('Erro ao salvar no Firestore:', err);
       throw err;
@@ -217,22 +236,36 @@ export async function salvarPaciente(pacienteData) {
       locais.unshift(cleanPayload);
     }
     saveLocalPacientes(locais);
-    // Dispara evento para atualização imediata dos componentes
     window.dispatchEvent(new Event('storage'));
-    return { success: true, id, mode: 'local' };
   }
+
+  // Registra carimbo na auditoria
+  try {
+    await registrarAuditoria({
+      acao: isNovo ? 'CADASTRO_PACIENTE' : 'ALTERACAO_PACIENTE',
+      detalhes: isNovo 
+        ? `Paciente "${cleanPayload.nome}" cadastrado no sistema.` 
+        : `Cadastro do paciente "${cleanPayload.nome}" foi alterado.`,
+      pacienteId: id,
+      pacienteNome: cleanPayload.nome,
+      usuario
+    });
+  } catch (auditErr) {
+    console.warn('Falha ao gravar auditoria do paciente:', auditErr);
+  }
+
+  return { success: true, id, mode: db ? 'firestore' : 'local' };
 }
 
 /**
- * Remove um paciente
+ * Remove um paciente com carimbo de auditoria
  */
-export async function excluirPaciente(pacienteId) {
+export async function excluirPaciente(pacienteId, pacienteNome = '', usuario = null) {
   const db = getDb();
 
   if (db) {
     try {
       await deleteDoc(doc(db, 'pacientes', pacienteId));
-      return { success: true, mode: 'firestore' };
     } catch (err) {
       console.error('Erro ao excluir no Firestore:', err);
       throw err;
@@ -242,27 +275,53 @@ export async function excluirPaciente(pacienteId) {
     const filtrados = locais.filter((p) => p.id !== pacienteId);
     saveLocalPacientes(filtrados);
     window.dispatchEvent(new Event('storage'));
-    return { success: true, mode: 'local' };
   }
+
+  // Registra carimbo na auditoria
+  try {
+    await registrarAuditoria({
+      acao: 'EXCLUSAO_PACIENTE',
+      detalhes: `Paciente "${pacienteNome || pacienteId}" foi excluído do sistema.`,
+      pacienteId,
+      pacienteNome,
+      usuario
+    });
+  } catch (auditErr) {
+    console.warn('Falha ao registrar auditoria de exclusão de paciente:', auditErr);
+  }
+
+  return { success: true, mode: db ? 'firestore' : 'local' };
 }
 
 /**
- * Adiciona um registro de prontuário médico / evolução ao paciente
+ * Adiciona um registro de prontuário médico / evolução com carimbo de auditoria
  */
-export async function adicionarEvolucao(pacienteId, evolucaoData) {
+export async function adicionarEvolucao(pacienteId, evolucaoData, pacienteNome = '', usuario = null) {
   const db = getDb();
+  const nowIso = new Date().toISOString();
+
+  const userUsername = usuario?.username || 'sistema';
+  const userNome = usuario?.nome || usuario?.username || 'Sistema';
+
   const novaEvolucao = {
     id: `evo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    dataHora: evolucaoData.dataHora || new Date().toISOString(),
+    dataHora: evolucaoData.dataHora || nowIso,
     descricaoDispositivo: evolucaoData.descricaoDispositivo || '',
     descricao: evolucaoData.descricao || '',
     conduta: evolucaoData.conduta || '',
     profissional: evolucaoData.profissional || '',
     tipoAtendimento: evolucaoData.tipoAtendimento || '',
-    createdAt: new Date().toISOString()
+    tipoRegistro: evolucaoData.tipoRegistro || '',
+    categoriaServico: evolucaoData.categoriaServico || '',
+    dispositivosDeferidos: evolucaoData.dispositivosDeferidos || [],
+    opcaoIntelectual: evolucaoData.opcaoIntelectual || '',
+    // Carimbo do usuário
+    criadoPor: userUsername,
+    criadoPorNome: userNome,
+    createdAt: nowIso
   };
 
-  // Garante que nenhum campo de novaEvolucao seja undefined (exigência estrita do Firestore)
+  // Garante que nenhum campo de novaEvolucao seja undefined
   const cleanNovaEvolucao = {};
   for (const [k, v] of Object.entries(novaEvolucao)) {
     cleanNovaEvolucao[k] = v !== undefined ? v : '';
@@ -275,7 +334,6 @@ export async function adicionarEvolucao(pacienteId, evolucaoData) {
       if (snap.exists()) {
         const dados = snap.data();
         const listaExistente = Array.isArray(dados.evolucoes) ? dados.evolucoes : [];
-        // Limpa possíveis valores undefined pré-existentes nas evoluções
         const evolucoesSanitizadas = [cleanNovaEvolucao, ...listaExistente].map((evo) => {
           const itemLimpo = {};
           for (const [key, val] of Object.entries(evo)) {
@@ -286,16 +344,21 @@ export async function adicionarEvolucao(pacienteId, evolucaoData) {
 
         await updateDoc(pacienteRef, {
           evolucoes: evolucoesSanitizadas,
-          updatedAt: new Date().toISOString()
+          updatedAt: nowIso,
+          atualizadoPor: userUsername,
+          atualizadoPorNome: userNome,
+          atualizadoEm: nowIso
         });
       } else {
         await setDoc(pacienteRef, {
           id: pacienteId,
           evolucoes: [cleanNovaEvolucao],
-          updatedAt: new Date().toISOString()
+          updatedAt: nowIso,
+          atualizadoPor: userUsername,
+          atualizadoPorNome: userNome,
+          atualizadoEm: nowIso
         }, { merge: true });
       }
-      return { success: true, evolucao: cleanNovaEvolucao, mode: 'firestore' };
     } catch (err) {
       console.error('Erro ao adicionar prontuário médico no Firestore:', err);
       throw err;
@@ -306,19 +369,40 @@ export async function adicionarEvolucao(pacienteId, evolucaoData) {
     if (paciente) {
       if (!paciente.evolucoes) paciente.evolucoes = [];
       paciente.evolucoes.unshift(cleanNovaEvolucao);
-      paciente.updatedAt = new Date().toISOString();
+      paciente.updatedAt = nowIso;
+      paciente.atualizadoPor = userUsername;
+      paciente.atualizadoPorNome = userNome;
+      paciente.atualizadoEm = nowIso;
       saveLocalPacientes(locais);
       window.dispatchEvent(new Event('storage'));
     }
-    return { success: true, evolucao: cleanNovaEvolucao, mode: 'local' };
   }
+
+  // Registra carimbo na auditoria
+  try {
+    const desc = cleanNovaEvolucao.descricaoDispositivo || cleanNovaEvolucao.opcaoIntelectual || cleanNovaEvolucao.descricao || 'Registro clínico';
+    await registrarAuditoria({
+      acao: 'NOVO_PRONTUARIO',
+      detalhes: `Novo registro no prontuário médico de "${pacienteNome || pacienteId}": ${desc}`,
+      pacienteId,
+      pacienteNome,
+      usuario
+    });
+  } catch (auditErr) {
+    console.warn('Falha ao registrar auditoria de prontuário:', auditErr);
+  }
+
+  return { success: true, evolucao: cleanNovaEvolucao, mode: db ? 'firestore' : 'local' };
 }
 
 /**
- * Exclui uma evolução do prontuário
+ * Exclui uma evolução do prontuário com carimbo de auditoria
  */
-export async function excluirEvolucao(pacienteId, evolucaoId) {
+export async function excluirEvolucao(pacienteId, evolucaoId, pacienteNome = '', usuario = null) {
   const db = getDb();
+  const nowIso = new Date().toISOString();
+  const userUsername = usuario?.username || 'sistema';
+  const userNome = usuario?.nome || usuario?.username || 'Sistema';
 
   if (db) {
     try {
@@ -337,10 +421,12 @@ export async function excluirEvolucao(pacienteId, evolucaoId) {
           });
         await updateDoc(pacienteRef, {
           evolucoes,
-          updatedAt: new Date().toISOString()
+          updatedAt: nowIso,
+          atualizadoPor: userUsername,
+          atualizadoPorNome: userNome,
+          atualizadoEm: nowIso
         });
       }
-      return { success: true, mode: 'firestore' };
     } catch (err) {
       console.error('Erro ao excluir evolução no Firestore:', err);
       throw err;
@@ -350,11 +436,28 @@ export async function excluirEvolucao(pacienteId, evolucaoId) {
     const paciente = locais.find((p) => p.id === pacienteId);
     if (paciente && paciente.evolucoes) {
       paciente.evolucoes = paciente.evolucoes.filter((e) => e.id !== evolucaoId);
-      paciente.updatedAt = new Date().toISOString();
+      paciente.updatedAt = nowIso;
+      paciente.atualizadoPor = userUsername;
+      paciente.atualizadoPorNome = userNome;
+      paciente.atualizadoEm = nowIso;
       saveLocalPacientes(locais);
       window.dispatchEvent(new Event('storage'));
     }
-    return { success: true, mode: 'local' };
   }
+
+  // Registra carimbo na auditoria
+  try {
+    await registrarAuditoria({
+      acao: 'EXCLUSAO_PRONTUARIO',
+      detalhes: `Anotação de prontuário (ID: ${evolucaoId}) do paciente "${pacienteNome || pacienteId}" foi excluída.`,
+      pacienteId,
+      pacienteNome,
+      usuario
+    });
+  } catch (auditErr) {
+    console.warn('Falha ao registrar auditoria de exclusão de prontuário:', auditErr);
+  }
+
+  return { success: true, mode: db ? 'firestore' : 'local' };
 }
 

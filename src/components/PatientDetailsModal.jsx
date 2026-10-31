@@ -170,6 +170,35 @@ export default function PatientDetailsModal({
           </div>
         </div>
 
+        {/* Carimbo de Auditoria do Paciente */}
+        {(patient.criadoPor || patient.atualizadoPor || patient.createdAt || patient.updatedAt) && (
+          <div className="bg-slate-100/90 border-b border-slate-200 px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-[11px] text-slate-500">
+            <div className="flex items-center gap-1.5">
+              <span className="font-semibold text-slate-700">Cadastrado por:</span>
+              <span className="font-bold text-slate-800">
+                {patient.criadoPorNome || patient.criadoPor || 'Sistema'}
+              </span>
+              <span>em</span>
+              <span className="font-semibold text-slate-700">
+                {formatarDataHoraBR(patient.criadoEm || patient.createdAt)}
+              </span>
+            </div>
+
+            {(patient.atualizadoPor || patient.updatedAt) && (
+              <div className="flex items-center gap-1.5">
+                <span className="font-semibold text-slate-700">Última alteração:</span>
+                <span className="font-bold text-slate-800">
+                  {patient.atualizadoPorNome || patient.atualizadoPor || 'Sistema'}
+                </span>
+                <span>em</span>
+                <span className="font-semibold text-slate-700">
+                  {formatarDataHoraBR(patient.atualizadoEm || patient.updatedAt)}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Conteúdo com Scroll */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
 
@@ -343,7 +372,13 @@ export default function PatientDetailsModal({
                             {formatarDataHoraBR(evo.dataHora || evo.data)}
                           </span>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center flex-wrap gap-2">
+                          {(evo.criadoPorNome || evo.criadoPor) && (
+                            <span className="text-[10px] font-semibold text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                              <UserCheck className="w-3 h-3 text-blue-600" />
+                              Registrado por: <strong className="text-slate-800">{evo.criadoPorNome || evo.criadoPor}</strong>
+                            </span>
+                          )}
                           {evo.profissional && (
                             <span className="text-xs font-medium text-slate-700 flex items-center gap-1">
                               <UserCheck className="w-3.5 h-3.5 text-teal-600" />
@@ -353,7 +388,7 @@ export default function PatientDetailsModal({
                           <button
                             onClick={() => {
                               if (confirm('Tem certeza que deseja excluir esta anotação do prontuário?')) {
-                                onDeleteEvolution(patient.id, evo.id);
+                                onDeleteEvolution(patient.id, evo.id, patient.nome);
                               }
                             }}
                             className="text-slate-300 hover:text-red-500 p-1 rounded opacity-0 group-hover:opacity-100 transition"

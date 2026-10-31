@@ -125,6 +125,15 @@ export default function PrintProntuario({ patient, onClose }) {
               <span className="font-bold text-blue-800">{servico}</span>
             </div>
           </div>
+
+          {(patient.criadoPor || patient.atualizadoPor) && (
+            <div className="mt-2 pt-2 border-t border-slate-200 flex flex-wrap justify-between text-[10px] text-slate-500 gap-1">
+              <span>Cadastrado por: <strong className="text-slate-700">{patient.criadoPorNome || patient.criadoPor || 'Sistema'}</strong> ({formatarDataHoraBR(patient.criadoEm || patient.createdAt)})</span>
+              {patient.atualizadoPor && (
+                <span>Última alteração: <strong className="text-slate-700">{patient.atualizadoPorNome || patient.atualizadoPor}</strong> ({formatarDataHoraBR(patient.atualizadoEm || patient.updatedAt)})</span>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Bloco 2: Diagnóstico e OPMs Solicitadas */}
@@ -219,7 +228,14 @@ export default function PrintProntuario({ patient, onClose }) {
                     <span>
                       {formatarDataHoraBR(evo.dataHora || evo.data)} {evo.tipoAtendimento ? <>• <strong className="text-blue-800">{evo.tipoAtendimento}</strong></> : null}
                     </span>
-                    {evo.profissional && <span>{evo.profissional}</span>}
+                    <div className="flex items-center gap-2">
+                      {(evo.criadoPorNome || evo.criadoPor) && (
+                        <span className="text-[10px] text-slate-500 font-normal">
+                          Registrado por: <strong className="text-slate-700">{evo.criadoPorNome || evo.criadoPor}</strong>
+                        </span>
+                      )}
+                      {evo.profissional && <span>{evo.profissional}</span>}
+                    </div>
                   </div>
 
                   {/* Caso 1: Dispositivos Deferidos (OPM) */}

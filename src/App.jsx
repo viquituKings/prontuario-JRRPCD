@@ -7,6 +7,10 @@ import PatientDetailsModal from './components/PatientDetailsModal';
 import EvolutionModal from './components/EvolutionModal';
 import PrintProntuario from './components/PrintProntuario';
 import FirebaseConfigModal from './components/FirebaseConfigModal';
+import LoginScreen from './components/LoginScreen';
+import ChangePasswordModal from './components/ChangePasswordModal';
+import UserManagementModal from './components/UserManagementModal';
+import AuditLogsModal from './components/AuditLogsModal';
 import { 
   subscribePacientes, 
   salvarPaciente, 
@@ -15,8 +19,14 @@ import {
   excluirEvolucao, 
   isFirebaseActive 
 } from './firebase';
+import { 
+  getUsuarioLogado, 
+  logout, 
+  inicializarUsuarios 
+} from './auth';
 
 export default function App() {
+  const [currentUser, setCurrentUser] = useState(() => getUsuarioLogado());
   const [pacientes, setPacientes] = useState([]);
   const [isFirebase, setIsFirebase] = useState(isFirebaseActive());
   const [isLoading, setIsLoading] = useState(true);
@@ -30,11 +40,23 @@ export default function App() {
   const [printPatient, setPrintPatient] = useState(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
+  // Modais de Controle de Acesso e Auditoria
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
+  const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
+
   // Filtro ativo vindo dos Cards de Estatísticas (Serviços)
   const [activeServicoFilter, setActiveServicoFilter] = useState('todos');
 
-  // Assinatura em tempo real dos pacientes
+  // Inicializa a coleção de usuários garantindo que mariacecilia / 12345678 esteja disponível
   useEffect(() => {
+    inicializarUsuarios();
+  }, []);
+
+  // Assinatura em tempo real dos pacientes (apenas se autenticado)
+  useEffect(() => {
+    if (!currentUser) return;
+
     setIsLoading(true);
     const unsubscribe = subscribePacientes((data) => {
       setPacientes(data);
@@ -56,9 +78,20 @@ export default function App() {
         unsubscribe();
       }
     };
-  }, [isFirebase]);
+  }, [currentUser, isFirebase]);
 
-  // Ações de Paciente
+  // Se não estiver logado, exibe tela de login
+  if (!currentUser) {
+    return <LoginScreen onLoginSuccess={(u) => setCurrentUser(u)} />;
+  }
+
+  // Ações de Logout
+  const handleLogout = async () => {
+    await logout();
+    setCurrentUser(null);
+  };
+
+  // Ações de Paciente com Carimbo de Auditoria
   const handleNewPatient = () => {
     setPatientToEdit(null);
     setIsFormOpen(true);
@@ -72,37 +105,40 @@ export default function App() {
   const handleSavePatient = async (patientData) => {
     if (Array.isArray(patientData)) {
       for (const item of patientData) {
-        await salvarPaciente(item);
+        await salvarPaciente(item, currentUser);
       }
     } else {
-      await salvarPaciente(patientData);
+      await salvarPaciente(patientData, currentUser);
     }
   };
 
   const handleDeletePatient = async (patientId) => {
-    await excluirPaciente(patientId);
+    const paciente = pacientes.find((p) => p.id === patientId);
+    await excluirPaciente(patientId, paciente?.nome || '', currentUser);
     if (selectedPatient?.id === patientId) {
       setSelectedPatient(null);
     }
   };
 
-  // Ações de Evolução
+  // Ações de Prontuário / Evolução com Carimbo de Auditoria
   const handleOpenEvolutionModal = (patient) => {
     setEvolutionTargetPatient(patient);
   };
 
   const handleSaveEvolution = async (patientId, evolucaoData) => {
-    await adicionarEvolucao(patientId, evolucaoData);
+    const paciente = pacientes.find((p) => p.id === patientId);
+    await adicionarEvolucao(patientId, evolucaoData, paciente?.nome || '', currentUser);
   };
 
-  const handleDeleteEvolution = async (patientId, evolucaoId) => {
-    await excluirEvolucao(patientId, evolucaoId);
+  const handleDeleteEvolution = async (patientId, evolucaoId, pacienteNome = '') => {
+    const nome = pacienteNome || (pacientes.find((p) => p.id === patientId)?.nome || '');
+    await excluirEvolucao(patientId, evolucaoId, nome, currentUser);
   };
 
-  // Importação de Backup
+  // Importação de Backup com Carimbo
   const handleImportPacientes = async (importedList) => {
     for (const p of importedList) {
-      await salvarPaciente(p);
+      await salvarPaciente(p, currentUser);
     }
     alert(`${importedList.length} prontuários importados com sucesso!`);
   };
@@ -117,6 +153,11 @@ export default function App() {
         onNewPatient={handleNewPatient}
         onOpenConfig={() => setIsConfigOpen(true)}
         onImportPacientes={handleImportPacientes}
+        currentUser={currentUser}
+        onLogout={handleLogout}
+        onOpenChangePassword={() => setIsChangePasswordOpen(true)}
+        onOpenUserManagement={() => setIsUserManagementOpen(true)}
+        onOpenAuditLogs={() => setIsAuditLogsOpen(true)}
       />
 
       {/* Conteúdo Principal */}
@@ -168,7 +209,7 @@ export default function App() {
 
       </main>
 
-      {/* Modais e Painéis */}
+      {/* Modais de Paciente e Prontuário */}
       <PatientFormModal
         isOpen={isFormOpen}
         onClose={() => setIsFormOpen(false)}
@@ -207,7 +248,24 @@ export default function App() {
         onConfigSaved={() => setIsFirebase(isFirebaseActive())}
       />
 
+      {/* Modais de Gestão de Acesso e Auditoria */}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        currentUser={currentUser}
+      />
+
+      <UserManagementModal
+        isOpen={isUserManagementOpen}
+        onClose={() => setIsUserManagementOpen(false)}
+        currentUser={currentUser}
+      />
+
+      <AuditLogsModal
+        isOpen={isAuditLogsOpen}
+        onClose={() => setIsAuditLogsOpen(false)}
+      />
+
     </div>
   );
 }
-
