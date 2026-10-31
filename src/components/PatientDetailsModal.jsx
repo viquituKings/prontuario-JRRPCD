@@ -33,6 +33,11 @@ export default function PatientDetailsModal({
   const evolucoes = patient.evolucoes || [];
   const servico = patient.servico_especializado || 'OPM';
   const opms = patient.opm_list || [];
+  const cidsList = patient.cid_list && patient.cid_list.length > 0
+    ? patient.cid_list
+    : patient.cid
+    ? patient.cid.split(';').map((c) => c.trim()).filter(Boolean)
+    : [];
 
   const cleanPhone = patient.telefone ? patient.telefone.replace(/\D/g, '') : '';
   const whatsappUrl = cleanPhone.length >= 10 ? `https://wa.me/55${cleanPhone}` : null;
@@ -160,15 +165,31 @@ export default function PatientDetailsModal({
           
           {/* CID e OPMs Solicitadas */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* CID */}
+            {/* CID(s) */}
             <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-1">
-              <div className="flex items-center gap-1.5 text-xs font-bold text-blue-900 uppercase tracking-wider">
-                <Stethoscope className="w-4 h-4 text-blue-600" />
-                <span>CID / Diagnóstico</span>
+              <div className="flex items-center justify-between text-xs font-bold text-blue-900 uppercase tracking-wider">
+                <span className="flex items-center gap-1.5">
+                  <Stethoscope className="w-4 h-4 text-blue-600" />
+                  <span>CID(s) / Diagnóstico(s) ({cidsList.length})</span>
+                </span>
               </div>
-              <p className="text-sm font-bold text-slate-900 mt-1">
-                {patient.cid || 'Não especificado'}
-              </p>
+              {cidsList.length > 0 ? (
+                <div className="space-y-1.5 mt-2">
+                  {cidsList.map((c, idx) => (
+                    <div 
+                      key={idx}
+                      className="px-2.5 py-1.5 bg-white rounded-xl border border-blue-200 text-blue-950 font-bold text-xs shadow-sm flex items-center gap-2"
+                    >
+                      <span className="w-5 h-5 rounded-md bg-blue-100 text-blue-800 text-[10px] flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <span className="truncate">{c}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400 italic mt-1">Não especificado</p>
+              )}
             </div>
 
             {/* OPMs Solicitadas */}

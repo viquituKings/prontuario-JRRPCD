@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   Calendar, 
@@ -18,11 +18,14 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react';
+import FloatingSelectMenu from './FloatingSelectMenu';
+import CidAutocompleteInput from './CidAutocompleteInput';
 import { 
   SERVICOS_ESPECIALIZADOS, 
   TIPOS_OPM, 
   OPMS_SUGERIDAS, 
-  CIDS_DATABASE, 
+  MUNICIPIOS_SUGERIDOS, 
+  ESFS_SUGERIDAS, 
   getHojeBR, 
   calcularIdade, 
   formatarTelefone, 
@@ -42,22 +45,30 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
     telefone: '',
     municipio: '',
     esf: '',
-    cid: '',
+    cid_list: [''],
     servico_especializado: 'OPM',
     opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
     observacoes: ''
   });
 
-  const [cidQuery, setCidQuery] = useState('');
-  const [showCidSuggestions, setShowCidSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [cpfValidationState, setCpfValidationState] = useState(null); // null | 'valid' | 'invalid'
-  const cidInputRef = useRef(null);
 
   useEffect(() => {
     if (patientToEdit) {
       const initialCpf = patientToEdit.cpf || '';
+      
+      // Carrega CIDs múltiplos ou converte string existente
+      let initialCids = [''];
+      if (patientToEdit.cid_list && Array.isArray(patientToEdit.cid_list) && patientToEdit.cid_list.length > 0) {
+        initialCids = patientToEdit.cid_list;
+      } else if (patientToEdit.cid) {
+        // Se já tiver CIDs separados por ponto-e-vírgula ou vírgula
+        initialCids = patientToEdit.cid.split(/[;,]/).map((c) => c.trim()).filter(Boolean);
+        if (initialCids.length === 0) initialCids = [''];
+      }
+
       setFormData({
         data_entrada: patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(),
         nome: patientToEdit.nome || '',
@@ -68,7 +79,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         telefone: patientToEdit.telefone || '',
         municipio: patientToEdit.municipio || '',
         esf: patientToEdit.esf || patientToEdit.esfReferencia || '',
-        cid: patientToEdit.cid || '',
+        cid_list: initialCids,
         servico_especializado: patientToEdit.servico_especializado || 'OPM',
         opm_list: patientToEdit.opm_list && patientToEdit.opm_list.length > 0
           ? patientToEdit.opm_list 
@@ -77,7 +88,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
           : [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
         observacoes: patientToEdit.observacoes || patientToEdit.prontuarioObservacoes || ''
       });
-      setCidQuery(patientToEdit.cid || '');
+
       if (initialCpf.replace(/\D/g, '').length === 11) {
         setCpfValidationState(validarCPF(initialCpf) ? 'valid' : 'invalid');
       } else {
@@ -94,15 +105,13 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         telefone: '',
         municipio: '',
         esf: '',
-        cid: '',
+        cid_list: [''],
         servico_especializado: 'OPM',
         opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
         observacoes: ''
       });
-      setCidQuery('');
       setCpfValidationState(null);
     }
-    setShowCidSuggestions(false);
     setErrorMsg('');
   }, [patientToEdit, isOpen]);
 
@@ -137,18 +146,27 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
     }
   };
 
-  // Autocomplete de CID
-  const handleCidChange = (e) => {
-    const val = e.target.value.toUpperCase();
-    setCidQuery(val);
-    setFormData((prev) => ({ ...prev, cid: val }));
-    setShowCidSuggestions(val.trim().length > 0);
+  // Funções para múltiplos CIDs
+  const handleAddCid = () => {
+    setFormData((prev) => ({
+      ...prev,
+      cid_list: [...prev.cid_list, '']
+    }));
   };
 
-  const handleSelectCid = (cidValue) => {
-    setCidQuery(cidValue);
-    setFormData((prev) => ({ ...prev, cid: cidValue }));
-    setShowCidSuggestions(false);
+  const handleUpdateCid = (index, value) => {
+    setFormData((prev) => {
+      const updated = [...prev.cid_list];
+      updated[index] = value;
+      return { ...prev, cid_list: updated };
+    });
+  };
+
+  const handleRemoveCid = (index) => {
+    setFormData((prev) => {
+      const updated = prev.cid_list.filter((_, i) => i !== index);
+      return { ...prev, cid_list: updated.length > 0 ? updated : [''] };
+    });
   };
 
   // Manipulação de lista dinâmica de OPMs
@@ -188,8 +206,15 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
       setErrorMsg('Por favor, informe a Data de Entrada.');
       return;
     }
-    if (!formData.cid.trim()) {
-      setErrorMsg('Por favor, informe o CID / Diagnóstico.');
+    if (!formData.municipio.trim()) {
+      setErrorMsg('Por favor, selecione ou informe o Município.');
+      return;
+    }
+
+    // Filtra CIDs preenchidos
+    const cleanCidList = formData.cid_list.map((c) => c.trim()).filter(Boolean);
+    if (cleanCidList.length === 0) {
+      setErrorMsg('Por favor, informe ao menos um CID / Diagnóstico para o paciente.');
       return;
     }
 
@@ -211,6 +236,8 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         ? formData.opm_list.filter((o) => o.tipo && o.solicitada.trim())
         : [];
 
+      const joinedCid = cleanCidList.join('; ');
+
       const payload = {
         ...formData,
         id: patientToEdit?.id,
@@ -219,6 +246,8 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         nome_mae: formData.nome_mae.toUpperCase(),
         municipio: formData.municipio.toUpperCase(),
         esf: formData.esf.toUpperCase(),
+        cid_list: cleanCidList,
+        cid: joinedCid,
         observacoes: formData.observacoes.toUpperCase(),
         opm_list: cleanOpmList,
         // Compatibilidade legada
@@ -240,9 +269,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
     }
   };
 
-  const filteredCids = CIDS_DATABASE.filter((c) =>
-    c.toUpperCase().includes(cidQuery.toUpperCase())
-  );
+  const validCidsCount = formData.cid_list.filter((c) => c.trim()).length;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">
@@ -405,90 +432,103 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           </div>
 
-          {/* Bloco 4: Município e ESF */}
+          {/* Bloco 4: Município e ESF com Menu Flutuante */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Município <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="EX: SETE LAGOAS, FUNILANDIA, ETC."
-                value={formData.municipio}
-                onChange={(e) => setFormData({ ...formData, municipio: e.target.value.toUpperCase() })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase font-medium focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
+            {/* Menu Flutuante de Municípios */}
+            <FloatingSelectMenu
+              label="Município"
+              required={true}
+              icon={MapPin}
+              title="Municípios de Referência"
+              placeholder="Selecione ou digite o município..."
+              value={formData.municipio}
+              options={MUNICIPIOS_SUGERIDOS}
+              onChange={(city) => setFormData({ ...formData, municipio: city })}
+            />
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                ESF de Referência
-              </label>
-              <input
-                type="text"
-                placeholder="EX: ESF BELO VALE II, ESF MORRO DO CLARO"
-                value={formData.esf}
-                onChange={(e) => setFormData({ ...formData, esf: e.target.value.toUpperCase() })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
+            {/* Menu Flutuante de ESFs */}
+            <FloatingSelectMenu
+              label="ESF de Referência"
+              required={false}
+              icon={Building2}
+              title="Unidades ESF / UBS da Região"
+              placeholder="Selecione ou digite a ESF / UBS..."
+              value={formData.esf}
+              options={ESFS_SUGERIDAS}
+              onChange={(unit) => setFormData({ ...formData, esf: unit })}
+            />
           </div>
 
-          {/* Bloco 5: CID e Serviço Especializado */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* CID com Autocomplete */}
-            <div className="relative">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                CID / Diagnóstico <span className="text-red-500">*</span>
-              </label>
-              <input
-                ref={cidInputRef}
-                type="text"
-                required
-                placeholder="EX: F84 - TEA, G12.2 - ELA, I69 - AVC"
-                value={formData.cid}
-                onChange={handleCidChange}
-                onFocus={() => setShowCidSuggestions(cidQuery.trim().length > 0)}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"
-                autoComplete="off"
-              />
+          {/* Bloco 5: Múltiplos CIDs com Autocomplete Oficial (14.349 CIDs da pasta cid/) */}
+          <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Stethoscope className="w-4 h-4 text-blue-600" />
+                  CID(s) / Diagnóstico(s) do Paciente <span className="text-red-500">*</span>
+                </label>
+                <p className="text-[11px] text-slate-500">
+                  O paciente pode ter múltiplos diagnósticos. Busque por código (ex: F84, G12, I69) ou nome.
+                </p>
+              </div>
 
-              {/* Lista suspensa de sugestões */}
-              {showCidSuggestions && filteredCids.length > 0 && (
-                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-30 max-h-48 overflow-y-auto divide-y divide-slate-100">
-                  {filteredCids.map((c) => (
-                    <div
-                      key={c}
-                      onMouseDown={() => handleSelectCid(c)}
-                      className="px-3.5 py-2 hover:bg-blue-50 hover:text-blue-700 cursor-pointer font-medium uppercase text-[11px] transition"
-                    >
-                      {c}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Serviço Especializado */}
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Serviço Especializado <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.servico_especializado}
-                onChange={(e) => setFormData({ ...formData, servico_especializado: e.target.value })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-                required
+              <button
+                type="button"
+                onClick={handleAddCid}
+                className="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 bg-white px-3 py-1.5 rounded-xl border border-blue-200 shadow-sm transition hover:scale-[1.02]"
               >
-                <option value="OPM">OPM</option>
-                <option value="Reab. Intelectual">REABILITAÇÃO INTELECTUAL</option>
-                <option value="Reab. Fisica">REABILITAÇÃO FÍSICA</option>
-              </select>
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>+ Adicionar Outro CID</span>
+              </button>
             </div>
+
+            {/* Lista dinâmica de CIDs */}
+            <div className="space-y-2.5">
+              {formData.cid_list.map((cidItem, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-800 text-[10px] font-bold flex items-center justify-center shrink-0">
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1">
+                    <CidAutocompleteInput
+                      value={cidItem}
+                      index={idx}
+                      required={idx === 0}
+                      canRemove={formData.cid_list.length > 1}
+                      onChange={(newCid) => handleUpdateCid(idx, newCid)}
+                      onRemove={() => handleRemoveCid(idx)}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {validCidsCount > 1 && (
+              <div className="text-[11px] text-blue-700 bg-blue-50/80 p-2 rounded-lg font-semibold flex items-center gap-1.5">
+                <CheckCircle className="w-3.5 h-3.5 text-blue-600" />
+                <span>{validCidsCount} diagnósticos registrados para este paciente.</span>
+              </div>
+            )}
           </div>
 
-          {/* Bloco 6: Seção Dinâmica de OPM (Múltiplos Itens) */}
+          {/* Bloco 6: Serviço Especializado */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Serviço Especializado <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={formData.servico_especializado}
+              onChange={(e) => setFormData({ ...formData, servico_especializado: e.target.value })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              required
+            >
+              <option value="OPM">OPM</option>
+              <option value="Reab. Intelectual">REABILITAÇÃO INTELECTUAL</option>
+              <option value="Reab. Fisica">REABILITAÇÃO FÍSICA</option>
+            </select>
+          </div>
+
+          {/* Bloco 7: Seção Dinâmica de OPM (Múltiplos Itens) */}
           {formData.servico_especializado === 'OPM' && (
             <div className="space-y-3 bg-blue-50/60 p-4 rounded-2xl border border-blue-200/80">
               <div className="flex items-center justify-between">
@@ -570,7 +610,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           )}
 
-          {/* Bloco 7: Prontuário / Observações */}
+          {/* Bloco 8: Prontuário / Observações */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
               Prontuário / Observações Clínicas

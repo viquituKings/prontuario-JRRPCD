@@ -35,25 +35,76 @@ export const OPMS_SUGERIDAS = [
   'ALMOFADA DE GEL / AR'
 ];
 
-export const CIDS_DATABASE = [
-  'F84 - TRANSTORNO DO ESPECTRO AUTISTA (TEA)',
-  'F84.0 - AUTISMO INFANTIL',
-  'F84.5 - SINDROME DE ASPERGER',
-  'F90 - TRANSTORNO DO DÉFICIT DE ATENÇÃO E HIPERATIVIDADE (TDAH)',
-  'G12.2 - ESCLEROSE LATERAL AMIOTRÓFICA (ELA)',
-  'G20 - DOENÇA DE PARKINSON',
-  'I69.4 - SEQUELA DE AVC',
-  'Q90 - SÍNDROME DE DOWN',
-  'Q05 - MIELOMENINGOCELE',
-  'S06 - TRAUMATISMO CRANIOENCEFÁLICO (TCE)',
-  'G80 - PARALISIA CEREBRAL',
-  'G82 - PARAPLEGIA E TETRAPLEGIA',
-  'C32 - NEOPLASIA MALIGNA DA LARINGE',
-  'C71 - NEOPLASIA MALIGNA DO ENCÉFALO',
-  'S88 - AMPUTAÇÃO TRAUMÁTICA DA PERNA',
-  'S78 - AMPUTAÇÃO TRAUMÁTICA DA COXA',
-  'M62.4 - CONTRATURA MUSCULAR',
-  'E10.5 - DIABETES MELLITUS COM COMPLICAÇÕES CIRCULATÓRIAS'
+// Municípios da Microrregião de Saúde / Referência Regional
+export const MUNICIPIOS_SUGERIDOS = [
+  'SETE LAGOAS',
+  'FUNILÂNDIA',
+  'BALDIM',
+  'CACHOEIRA DA PRATA',
+  'CAETANÓPOLIS',
+  'CAPIM BRANCO',
+  'CORDISBURGO',
+  'FORTUNA DE MINAS',
+  'INHAÚMA',
+  'JEQUITIBÁ',
+  'MARAVILHAS',
+  'MATOZINHOS',
+  'PAPAGAIOS',
+  'PARAOPEBA',
+  'PEQUI',
+  'PRUDENTE DE MORAIS',
+  'SANTANA DE PIRAPAMA',
+  'SANTANA DO RIACHO',
+  'SÃO JOSÉ DA LAPA',
+  'BELO HORIZONTE',
+  'CONTAGEM',
+  'BETIM',
+  'CURVELO',
+  'PEDRO LEOPOLDO',
+  'RIBEIRÃO DAS NEVES',
+  'SANTA LUZIA',
+  'VESPASIANO'
+];
+
+// Unidades Básicas de Saúde e ESFs de Referência
+export const ESFS_SUGERIDAS = [
+  'ESF BELO VALE I',
+  'ESF BELO VALE II',
+  'ESF MORRO DO CLARO',
+  'ESF CIDADE DE DEUS',
+  'ESF PROGRESSO',
+  'ESF SANTA LUZIA',
+  'ESF SANTA ROSA',
+  'ESF BOA VISTA',
+  'ESF CATARINA',
+  'ESF CENTRO',
+  'ESF VERDE VALE',
+  'ESF MONTREAL',
+  'ESF ALVORADA',
+  'ESF ITAPUÃ I',
+  'ESF ITAPUÃ II',
+  'ESF PLANALTO',
+  'ESF ESPERANÇA',
+  'ESF SÃO GERALDO',
+  'ESF SÃO FRANCISCO',
+  'ESF BARREIRO',
+  'ESF FAZENDINHA',
+  'ESF SILVA XAVIER',
+  'ESF TAMANDUÁ',
+  'ESF SANTO ANTÔNIO',
+  'UBS CENTRO',
+  'UBS LUXEMBURGO',
+  'UBS OURO BRANCO',
+  'UBS VILA SUÍÇA',
+  'UBS JARDIM ARIZONA',
+  'ESF CENTRO - FUNILÂNDIA',
+  'ESF ZONA RURAL - FUNILÂNDIA',
+  'ESF CENTRO - PRUDENTE DE MORAIS',
+  'ESF CENTRO - BALDIM',
+  'ESF CENTRO - CORDISBURGO',
+  'ESF CENTRO - PARAOPEBA',
+  'ESF CENTRO - INHAÚMA',
+  'ESF CENTRO - CACHOEIRA DA PRATA'
 ];
 
 export const TIPOS_ATENDIMENTO = [
@@ -69,6 +120,18 @@ export const TIPOS_ATENDIMENTO = [
   'Visita Domiciliar',
   'Atendimento do Serviço Social'
 ];
+
+/**
+ * Remove acentos e normaliza texto para busca insensível
+ */
+export function normalizarTexto(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .trim();
+}
 
 /**
  * Retorna a data atual no formato DD/MM/AAAA
@@ -218,9 +281,13 @@ export const PACIENTES_DEMO = [
     dn: '11/09/1956',
     idade: 69,
     telefone: '(31) 98545-8648',
-    municipio: 'FUNILANDIA',
-    esf: '',
-    cid: 'G12.2 - ESCLEROSE LATERAL AMIOTRÓFICA (ELA)',
+    municipio: 'FUNILÂNDIA',
+    esf: 'ESF CENTRO - FUNILÂNDIA',
+    cid_list: [
+      'G12.2 - Doença do neurônio motor (ELA)',
+      'G82.0 - Paraplegia flácida'
+    ],
+    cid: 'G12.2 - Doença do neurônio motor (ELA); G82.0 - Paraplegia flácida',
     servico_especializado: 'OPM',
     opm_list: [
       { tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', solicitada: 'MULETA CANADENSE' },
@@ -250,7 +317,11 @@ export const PACIENTES_DEMO = [
     telefone: '(31) 98311-3240',
     municipio: 'SETE LAGOAS',
     esf: 'ESF MORRO DO CLARO',
-    cid: 'F84 - TRANSTORNO DO ESPECTRO AUTISTA (TEA), TDAH',
+    cid_list: [
+      'F84.0 - Autismo infantil',
+      'F90.0 - Distúrbios da atividade e da atenção (TDAH)'
+    ],
+    cid: 'F84.0 - Autismo infantil; F90.0 - Distúrbios da atividade e da atenção (TDAH)',
     servico_especializado: 'Reab. Intelectual',
     opm_list: [],
     observacoes: 'ENCAMINHADO PARA TERAPIA OCUPACIONAL E PSICOPEDAGOGIA NO CENTRO DE AUTISMO.',

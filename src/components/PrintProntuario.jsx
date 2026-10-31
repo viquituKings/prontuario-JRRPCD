@@ -10,6 +10,11 @@ export default function PrintProntuario({ patient, onClose }) {
   const dataEntrada = patient.data_entrada || patient.dataEntrada || '-';
   const dn = patient.dn || patient.dataNascimento || '-';
   const nomeMae = patient.nome_mae || patient.nomeMae || '-';
+  const cidsList = patient.cid_list && patient.cid_list.length > 0
+    ? patient.cid_list
+    : patient.cid
+    ? patient.cid.split(';').map((c) => c.trim()).filter(Boolean)
+    : [];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm flex flex-col items-center p-4">
@@ -120,8 +125,18 @@ export default function PrintProntuario({ patient, onClose }) {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="p-3 border border-slate-200 rounded-lg">
-              <span className="text-[10px] text-slate-500 block font-semibold uppercase">CID / Diagnóstico:</span>
-              <p className="text-xs font-bold text-slate-900 mt-0.5">{patient.cid || 'Não informado'}</p>
+              <span className="text-[10px] text-slate-500 block font-semibold uppercase">CID(s) / Diagnóstico(s):</span>
+              {cidsList.length > 0 ? (
+                <div className="space-y-1 mt-1">
+                  {cidsList.map((c, idx) => (
+                    <div key={idx} className="text-xs font-bold text-slate-900">
+                      • {c}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs font-bold text-slate-900 mt-0.5">{patient.cid || 'Não informado'}</p>
+              )}
             </div>
 
             <div className="p-3 border border-slate-200 rounded-lg">

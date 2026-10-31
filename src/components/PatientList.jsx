@@ -41,7 +41,10 @@ export default function PatientList({
 
       // Filtro por CID
       const cidTerm = filterCid.toUpperCase().trim();
-      const matchCid = !cidTerm || (p.cid && p.cid.toUpperCase().includes(cidTerm));
+      const matchCid = !cidTerm || (
+        (p.cid && p.cid.toUpperCase().includes(cidTerm)) ||
+        (p.cid_list && p.cid_list.some((c) => c.toUpperCase().includes(cidTerm)))
+      );
 
       // Filtro por Município
       const munTerm = filterMunicipio.toUpperCase().trim();
@@ -236,10 +239,22 @@ export default function PatientList({
                       </td>
 
                       {/* CID / Diagnóstico */}
-                      <td className="p-4 text-slate-700 font-medium max-w-[220px]">
-                        <span className="line-clamp-2" title={p.cid}>
-                          {p.cid}
-                        </span>
+                      <td className="p-4 text-slate-700 font-medium max-w-[240px]">
+                        {(() => {
+                          const cids = p.cid_list && p.cid_list.length > 0
+                            ? p.cid_list
+                            : p.cid ? p.cid.split(/[;]/).map((c) => c.trim()).filter(Boolean) : [];
+                          if (cids.length === 0) return <span className="text-slate-400">-</span>;
+                          return (
+                            <div className="space-y-1">
+                              {cids.map((c, i) => (
+                                <div key={i} className="text-xs truncate font-semibold text-slate-800" title={c}>
+                                  {c}
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
                       </td>
 
                       {/* Serviço Especializado */}
