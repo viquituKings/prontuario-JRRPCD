@@ -1,0 +1,41 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  }
+}
+
+/* Estilos de impressão para o Prontuário Médico */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .page-break {
+    page-break-after: always;
+  }
+
+  /* Remove sombras e bordas cinzas na impressão */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+}
+
+@media screen {
+  .print-only {
+    display: none !important;
+  }
+}
