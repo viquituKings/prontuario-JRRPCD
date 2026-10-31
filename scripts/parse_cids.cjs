@@ -69,3 +69,4 @@ if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
 const outFile = path.join(outDir, 'cids.json');
 fs.writeFileSync(outFile, JSON.stringify(cids, null, 2), 'utf-8');
 console.log('Arquivo salvo com sucesso em:', outFile, 'Tamanho:', (fs.statSync(outFile).size / 1024).toFixed(1), 'KB');
+

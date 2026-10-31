@@ -134,6 +134,17 @@ export function normalizarTexto(str) {
 }
 
 /**
+ * Remove acentos, tremas e cedilhas de nomes de pacientes e mães (Padrão SUS / CADSUS)
+ */
+export function removerAcentos(str) {
+  if (!str) return '';
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+}
+
+/**
  * Retorna a data atual no formato DD/MM/AAAA
  */
 export function getHojeBR() {

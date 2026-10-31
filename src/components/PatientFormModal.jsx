@@ -31,7 +31,8 @@ import {
   formatarTelefone, 
   formatarMascaraData,
   formatarCPF,
-  validarCPF
+  validarCPF,
+  removerAcentos
 } from '../types';
 
 export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdit }) {
@@ -71,9 +72,9 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
 
       setFormData({
         data_entrada: patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(),
-        nome: patientToEdit.nome || '',
+        nome: removerAcentos(patientToEdit.nome || ''),
         cpf: initialCpf,
-        nome_mae: patientToEdit.nome_mae || patientToEdit.nomeMae || '',
+        nome_mae: removerAcentos(patientToEdit.nome_mae || patientToEdit.nomeMae || ''),
         dn: patientToEdit.dn || patientToEdit.dataNascimento || '',
         idade: patientToEdit.idade || '',
         telefone: patientToEdit.telefone || '',
@@ -241,9 +242,9 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
       const payload = {
         ...formData,
         id: patientToEdit?.id,
-        nome: formData.nome.toUpperCase(),
+        nome: removerAcentos(formData.nome),
         cpf: formData.cpf,
-        nome_mae: formData.nome_mae.toUpperCase(),
+        nome_mae: removerAcentos(formData.nome_mae),
         municipio: formData.municipio.toUpperCase(),
         esf: formData.esf.toUpperCase(),
         cid_list: cleanCidList,
@@ -251,7 +252,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         observacoes: formData.observacoes.toUpperCase(),
         opm_list: cleanOpmList,
         // Compatibilidade legada
-        nomeMae: formData.nome_mae.toUpperCase(),
+        nomeMae: removerAcentos(formData.nome_mae),
         dataEntrada: formData.data_entrada,
         dataNascimento: formData.dn,
         esfReferencia: formData.esf,
@@ -324,17 +325,18 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
               />
             </div>
 
-            {/* Nome do Paciente */}
+            {/* Nome do Paciente (Sem acentos) */}
             <div className="md:col-span-6">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Nome do Paciente <span className="text-red-500">*</span>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>Nome do Paciente <span className="text-red-500">*</span></span>
+                <span className="text-[9px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">Sem acentos</span>
               </label>
               <input
                 type="text"
                 required
-                placeholder="NOME COMPLETO DO PACIENTE"
+                placeholder="NOME COMPLETO DO PACIENTE (SEM ACENTOS)"
                 value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: e.target.value.toUpperCase() })}
+                onChange={(e) => setFormData({ ...formData, nome: removerAcentos(e.target.value) })}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
@@ -372,18 +374,21 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           </div>
 
-          {/* Bloco 2: Nome da Mãe (Obrigatório) */}
+          {/* Bloco 2: Nome da Mãe (Obrigatório, sem acentos) */}
           <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <Heart className="w-3.5 h-3.5 text-rose-500" />
-              Nome da Mãe do Paciente <span className="text-red-500">*</span>
+            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-rose-500" />
+                Nome da Mãe do Paciente <span className="text-red-500">*</span>
+              </span>
+              <span className="text-[9px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100">Sem acentos</span>
             </label>
             <input
               type="text"
               required
-              placeholder="NOME COMPLETO DA MÃE DO PACIENTE"
+              placeholder="NOME COMPLETO DA MÃE DO PACIENTE (SEM ACENTOS)"
               value={formData.nome_mae}
-              onChange={(e) => setFormData({ ...formData, nome_mae: e.target.value.toUpperCase() })}
+              onChange={(e) => setFormData({ ...formData, nome_mae: removerAcentos(e.target.value) })}
               className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
