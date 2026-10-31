@@ -14,10 +14,8 @@ import {
   Edit3, 
   Trash2,
   UserCheck,
-  Hospital,
-  CheckCircle2,
-  ShieldCheck,
-  Send
+  Heart,
+  CreditCard
 } from 'lucide-react';
 import { formatarDataHoraBR } from '../types';
 
@@ -61,11 +59,6 @@ export default function PatientDetailsModal({
                 <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}`}>
                   {servico}
                 </span>
-                {patient.status && (
-                  <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-800 text-blue-300 border border-slate-700">
-                    {patient.status}
-                  </span>
-                )}
               </div>
               
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">
@@ -74,6 +67,12 @@ export default function PatientDetailsModal({
                 <span>DN: <strong className="text-white">{patient.dn || patient.dataNascimento || '-'}</strong></span>
                 <span>•</span>
                 <span>Idade: <strong className="text-white">{patient.idade ? `${patient.idade} anos` : '-'}</strong></span>
+                {patient.cpf && (
+                  <>
+                    <span>•</span>
+                    <span>CPF: <strong className="text-white font-mono">{patient.cpf}</strong></span>
+                  </>
+                )}
               </div>
             </div>
 
@@ -110,8 +109,19 @@ export default function PatientDetailsModal({
           </div>
         </div>
 
-        {/* Informações de Localização e Protocolo */}
-        <div className="bg-slate-50 border-b border-slate-200 px-6 py-3.5 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+        {/* Informações Cadastrais (Mãe, CPF, Telefone, Município, ESF) */}
+        <div className="bg-slate-50 border-b border-slate-200 px-6 py-3.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+          {/* Nome da Mãe */}
+          <div className="sm:col-span-2">
+            <span className="text-slate-500 block font-medium flex items-center gap-1">
+              <Heart className="w-3 h-3 text-rose-500" /> Nome da Mãe
+            </span>
+            <div className="font-bold text-slate-800 mt-0.5 truncate" title={patient.nome_mae || patient.nomeMae}>
+              {patient.nome_mae || patient.nomeMae || 'Não informado'}
+            </div>
+          </div>
+
+          {/* Telefone */}
           <div>
             <span className="text-slate-500 block font-medium">Telefone / Contato</span>
             <div className="flex items-center gap-1.5 mt-0.5 font-semibold text-slate-800">
@@ -131,51 +141,17 @@ export default function PatientDetailsModal({
             </div>
           </div>
 
+          {/* Município & ESF */}
           <div>
-            <span className="text-slate-500 block font-medium">Município</span>
-            <div className="flex items-center gap-1.5 mt-0.5 font-semibold text-slate-800">
-              <MapPin className="w-3.5 h-3.5 text-slate-400" />
-              <span>{patient.municipio || 'Não informado'}</span>
+            <span className="text-slate-500 block font-medium">Município / ESF</span>
+            <div className="font-semibold text-slate-800 mt-0.5">
+              <span>{patient.municipio || '-'}</span>
+              {(patient.esf || patient.esfReferencia) && (
+                <span className="text-slate-500 block text-[11px] truncate">
+                  {patient.esf || patient.esfReferencia}
+                </span>
+              )}
             </div>
-          </div>
-
-          <div>
-            <span className="text-slate-500 block font-medium">ESF de Referência</span>
-            <div className="flex items-center gap-1.5 mt-0.5 font-semibold text-slate-800">
-              <Building2 className="w-3.5 h-3.5 text-slate-400" />
-              <span>{patient.esf || patient.esfReferencia || 'Não informado'}</span>
-            </div>
-          </div>
-
-          <div>
-            <span className="text-slate-500 block font-medium">Remetente</span>
-            <div className="flex items-center gap-1.5 mt-0.5 font-semibold text-slate-800">
-              <Send className="w-3.5 h-3.5 text-slate-400" />
-              <span>{patient.remetente || '-'}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Dados da Junta e Avaliação */}
-        <div className="bg-white border-b border-slate-100 px-6 py-3 grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
-          <div>
-            <span className="text-slate-400 block font-medium">Avaliação da Junta</span>
-            <span className="font-bold text-slate-800 mt-0.5 block">{patient.avaliacao_junta || '-'}</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block font-medium">Data de Avaliação/Envio</span>
-            <span className="font-bold text-slate-800 mt-0.5 block">{patient.data_avaliacao || '-'}</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block font-medium">Presença</span>
-            <span className="font-bold text-emerald-700 mt-0.5 block">{patient.presenca || '-'}</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block font-medium">Data da Alta</span>
-            <span className="font-bold text-slate-800 mt-0.5 block">{patient.data_alta || 'Em acompanhamento'}</span>
           </div>
         </div>
 
@@ -225,7 +201,7 @@ export default function PatientDetailsModal({
             <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
               <div className="flex items-center gap-1.5 text-xs font-bold text-slate-600 uppercase tracking-wider">
                 <FileText className="w-4 h-4 text-slate-500" />
-                <span>Prontuário & Observações do Pedido</span>
+                <span>Prontuário & Observações Clínicas</span>
               </div>
               <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-medium">
                 {patient.observacoes || patient.prontuarioObservacoes}
@@ -242,7 +218,7 @@ export default function PatientDetailsModal({
                   <span>Histórico de Evolução Clínica</span>
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Registro de atendimentos, consultas, medições e entregas
+                  Registro de atendimentos, consultas, medições e condutas
                 </p>
               </div>
 

@@ -13,28 +13,30 @@ import {
   Sparkles,
   FileText,
   Hospital,
-  Clock,
-  CheckCircle2
+  Heart,
+  CreditCard,
+  CheckCircle,
+  AlertCircle
 } from 'lucide-react';
 import { 
   SERVICOS_ESPECIALIZADOS, 
   TIPOS_OPM, 
   OPMS_SUGERIDAS, 
   CIDS_DATABASE, 
-  STATUS_SUGESTOES, 
-  PRESENCA_SUGESTOES, 
-  REMETENTE_SUGESTOES, 
-  AVALIACAO_JUNTA_SUGESTOES, 
   getHojeBR, 
   calcularIdade, 
   formatarTelefone, 
-  formatarMascaraData 
+  formatarMascaraData,
+  formatarCPF,
+  validarCPF
 } from '../types';
 
 export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdit }) {
   const [formData, setFormData] = useState({
     data_entrada: getHojeBR(),
     nome: '',
+    cpf: '',
+    nome_mae: '',
     dn: '',
     idade: '',
     telefone: '',
@@ -43,12 +45,6 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
     cid: '',
     servico_especializado: 'OPM',
     opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
-    remetente: '',
-    avaliacao_junta: '',
-    data_avaliacao: '',
-    presenca: 'COMPARECEU',
-    status: 'INSERIDO',
-    data_alta: '',
     observacoes: ''
   });
 
@@ -56,13 +52,17 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
   const [showCidSuggestions, setShowCidSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [cpfValidationState, setCpfValidationState] = useState(null); // null | 'valid' | 'invalid'
   const cidInputRef = useRef(null);
 
   useEffect(() => {
     if (patientToEdit) {
+      const initialCpf = patientToEdit.cpf || '';
       setFormData({
         data_entrada: patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(),
         nome: patientToEdit.nome || '',
+        cpf: initialCpf,
+        nome_mae: patientToEdit.nome_mae || patientToEdit.nomeMae || '',
         dn: patientToEdit.dn || patientToEdit.dataNascimento || '',
         idade: patientToEdit.idade || '',
         telefone: patientToEdit.telefone || '',
@@ -75,19 +75,20 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
           : patientToEdit.tipoOpm 
           ? [{ tipo: 'ÓRTESE', solicitada: patientToEdit.tipoOpm }]
           : [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
-        remetente: patientToEdit.remetente || '',
-        avaliacao_junta: patientToEdit.avaliacao_junta || '',
-        data_avaliacao: patientToEdit.data_avaliacao || '',
-        presenca: patientToEdit.presenca || 'COMPARECEU',
-        status: patientToEdit.status || 'INSERIDO',
-        data_alta: patientToEdit.data_alta || '',
         observacoes: patientToEdit.observacoes || patientToEdit.prontuarioObservacoes || ''
       });
       setCidQuery(patientToEdit.cid || '');
+      if (initialCpf.replace(/\D/g, '').length === 11) {
+        setCpfValidationState(validarCPF(initialCpf) ? 'valid' : 'invalid');
+      } else {
+        setCpfValidationState(null);
+      }
     } else {
       setFormData({
         data_entrada: getHojeBR(),
         nome: '',
+        cpf: '',
+        nome_mae: '',
         dn: '',
         idade: '',
         telefone: '',
@@ -96,15 +97,10 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         cid: '',
         servico_especializado: 'OPM',
         opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
-        remetente: '',
-        avaliacao_junta: '',
-        data_avaliacao: '',
-        presenca: 'COMPARECEU',
-        status: 'INSERIDO',
-        data_alta: '',
         observacoes: ''
       });
       setCidQuery('');
+      setCpfValidationState(null);
     }
     setShowCidSuggestions(false);
     setErrorMsg('');
@@ -121,6 +117,24 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
       dn: masked,
       idade: calculated !== '' ? calculated : prev.idade
     }));
+  };
+
+  // Manipulação de CPF com máscara e validação
+  const handleCpfChange = (e) => {
+    const raw = e.target.value;
+    const formatted = formatarCPF(raw);
+    const digits = formatted.replace(/\D/g, '');
+
+    setFormData((prev) => ({ ...prev, cpf: formatted }));
+
+    if (digits.length === 0) {
+      setCpfValidationState(null);
+    } else if (digits.length === 11) {
+      const isValid = validarCPF(formatted);
+      setCpfValidationState(isValid ? 'valid' : 'invalid');
+    } else {
+      setCpfValidationState('incomplete');
+    }
   };
 
   // Autocomplete de CID
@@ -166,6 +180,10 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
       setErrorMsg('Por favor, informe o Nome do paciente.');
       return;
     }
+    if (!formData.nome_mae.trim()) {
+      setErrorMsg('Por favor, informe o Nome da Mãe do paciente (obrigatório).');
+      return;
+    }
     if (!formData.data_entrada.trim()) {
       setErrorMsg('Por favor, informe a Data de Entrada.');
       return;
@@ -173,6 +191,15 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
     if (!formData.cid.trim()) {
       setErrorMsg('Por favor, informe o CID / Diagnóstico.');
       return;
+    }
+
+    // Validação do CPF se tiver sido preenchido
+    const cpfDigits = formData.cpf.replace(/\D/g, '');
+    if (cpfDigits.length > 0) {
+      if (cpfDigits.length !== 11 || !validarCPF(formData.cpf)) {
+        setErrorMsg('O CPF informado é inválido. Corrija o número ou deixe em branco.');
+        return;
+      }
     }
 
     try {
@@ -184,20 +211,18 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         ? formData.opm_list.filter((o) => o.tipo && o.solicitada.trim())
         : [];
 
-      // Monta objeto com compatibilidade para todos os campos do prontuario.example
       const payload = {
         ...formData,
         id: patientToEdit?.id,
         nome: formData.nome.toUpperCase(),
+        cpf: formData.cpf,
+        nome_mae: formData.nome_mae.toUpperCase(),
         municipio: formData.municipio.toUpperCase(),
         esf: formData.esf.toUpperCase(),
-        remetente: formData.remetente.toUpperCase(),
-        avaliacao_junta: formData.avaliacao_junta.toUpperCase(),
-        presenca: formData.presenca.toUpperCase(),
-        status: formData.status.toUpperCase(),
         observacoes: formData.observacoes.toUpperCase(),
         opm_list: cleanOpmList,
-        // Campos de compatibilidade legada
+        // Compatibilidade legada
+        nomeMae: formData.nome_mae.toUpperCase(),
         dataEntrada: formData.data_entrada,
         dataNascimento: formData.dn,
         esfReferencia: formData.esf,
@@ -231,10 +256,10 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-bold">
-                {patientToEdit ? 'Editar Paciente / Pedido' : 'Novo Paciente / Pedido'}
+                {patientToEdit ? 'Editar Prontuário do Paciente' : 'Cadastro de Novo Paciente'}
               </h2>
               <p className="text-[11px] text-blue-100 font-medium">
-                Gestão Junta • Protocolo de OPM e Reabilitação
+                JRRPCD • Gestão de OPM e Reabilitação
               </p>
             </div>
           </div>
@@ -250,14 +275,15 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-5 flex-1 text-xs">
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-2">
-              <span>⚠️</span>
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
               <span className="font-medium">{errorMsg}</span>
             </div>
           )}
 
-          {/* Bloco 1: Data de Entrada e Nome */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+          {/* Bloco 1: Data de Entrada, Nome Completo e CPF */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
+            {/* Data de Entrada */}
+            <div className="md:col-span-3">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                 Data de Entrada <span className="text-red-500">*</span>
               </label>
@@ -271,7 +297,8 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
               />
             </div>
 
-            <div className="md:col-span-2">
+            {/* Nome do Paciente */}
+            <div className="md:col-span-6">
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
                 Nome do Paciente <span className="text-red-500">*</span>
               </label>
@@ -284,9 +311,57 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
               />
             </div>
+
+            {/* CPF (Não obrigatório, com validação) */}
+            <div className="md:col-span-3">
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  CPF <span className="text-slate-400 font-normal text-[9px]">(Opcional)</span>
+                </label>
+                {cpfValidationState === 'valid' && (
+                  <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5">
+                    <CheckCircle className="w-3 h-3" /> Válido
+                  </span>
+                )}
+                {cpfValidationState === 'invalid' && (
+                  <span className="text-[10px] font-bold text-red-600 flex items-center gap-0.5">
+                    <AlertCircle className="w-3 h-3" /> Inválido
+                  </span>
+                )}
+              </div>
+              <input
+                type="text"
+                placeholder="000.000.000-00"
+                value={formData.cpf}
+                onChange={handleCpfChange}
+                className={`w-full bg-slate-50 border rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 outline-none font-mono ${
+                  cpfValidationState === 'valid'
+                    ? 'border-emerald-300 focus:ring-emerald-500 bg-emerald-50/30'
+                    : cpfValidationState === 'invalid'
+                    ? 'border-red-300 focus:ring-red-500 bg-red-50/30 text-red-700'
+                    : 'border-slate-200 focus:ring-blue-500'
+                }`}
+              />
+            </div>
           </div>
 
-          {/* Bloco 2: DN, Idade e Telefone */}
+          {/* Bloco 2: Nome da Mãe (Obrigatório) */}
+          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
+            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+              <Heart className="w-3.5 h-3.5 text-rose-500" />
+              Nome da Mãe do Paciente <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="NOME COMPLETO DA MÃE DO PACIENTE"
+              value={formData.nome_mae}
+              onChange={(e) => setFormData({ ...formData, nome_mae: e.target.value.toUpperCase() })}
+              className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+
+          {/* Bloco 3: DN, Idade e Telefone */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
@@ -330,7 +405,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           </div>
 
-          {/* Bloco 3: Município e ESF */}
+          {/* Bloco 4: Município e ESF */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
@@ -360,7 +435,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           </div>
 
-          {/* Bloco 4: CID e Serviço Especializado */}
+          {/* Bloco 5: CID e Serviço Especializado */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* CID com Autocomplete */}
             <div className="relative">
@@ -413,7 +488,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           </div>
 
-          {/* Bloco 5: Seção Dinâmica de OPM (Múltiplos Itens) */}
+          {/* Bloco 6: Seção Dinâmica de OPM (Múltiplos Itens) */}
           {formData.servico_especializado === 'OPM' && (
             <div className="space-y-3 bg-blue-50/60 p-4 rounded-2xl border border-blue-200/80">
               <div className="flex items-center justify-between">
@@ -495,122 +570,14 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           )}
 
-          {/* Bloco 6: Remetente, Avaliação da Junta e Data */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Remetente
-              </label>
-              <input
-                type="text"
-                list="remetente-sugestoes"
-                placeholder="EX: APS / MUNICIPIO"
-                value={formData.remetente}
-                onChange={(e) => setFormData({ ...formData, remetente: e.target.value.toUpperCase() })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              <datalist id="remetente-sugestoes">
-                {REMETENTE_SUGESTOES.map((r) => (
-                  <option key={r} value={r} />
-                ))}
-              </datalist>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Avaliação da Junta
-              </label>
-              <input
-                type="text"
-                list="junta-sugestoes"
-                placeholder="EX: CER II, CENTRO DE AUTISMO"
-                value={formData.avaliacao_junta}
-                onChange={(e) => setFormData({ ...formData, avaliacao_junta: e.target.value.toUpperCase() })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              <datalist id="junta-sugestoes">
-                {AVALIACAO_JUNTA_SUGESTOES.map((j) => (
-                  <option key={j} value={j} />
-                ))}
-              </datalist>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Data de Avaliação / Envio
-              </label>
-              <input
-                type="text"
-                placeholder="DD/MM/AAAA"
-                value={formData.data_avaliacao}
-                onChange={(e) => setFormData({ ...formData, data_avaliacao: formatarMascaraData(e.target.value) })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Bloco 7: Presença, Status e Data da Alta */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Presença
-              </label>
-              <input
-                type="text"
-                list="presenca-sugestoes"
-                placeholder="EX: COMPARECEU"
-                value={formData.presenca}
-                onChange={(e) => setFormData({ ...formData, presenca: e.target.value.toUpperCase() })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-emerald-800"
-              />
-              <datalist id="presenca-sugestoes">
-                {PRESENCA_SUGESTOES.map((p) => (
-                  <option key={p} value={p} />
-                ))}
-              </datalist>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Status
-              </label>
-              <input
-                type="text"
-                list="status-sugestoes"
-                placeholder="EX: INSERIDO / AGUARDANDO OPM"
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value.toUpperCase() })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-blue-800"
-              />
-              <datalist id="status-sugestoes">
-                {STATUS_SUGESTOES.map((s) => (
-                  <option key={s} value={s} />
-                ))}
-              </datalist>
-            </div>
-
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Data da Alta
-              </label>
-              <input
-                type="text"
-                placeholder="DD/MM/AAAA"
-                value={formData.data_alta}
-                onChange={(e) => setFormData({ ...formData, data_alta: formatarMascaraData(e.target.value) })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-            </div>
-          </div>
-
-          {/* Bloco 8: Prontuário / Observações */}
+          {/* Bloco 7: Prontuário / Observações */}
           <div>
             <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-              Prontuário / Observações Adicionais
+              Prontuário / Observações Clínicas
             </label>
             <textarea
               rows={3}
-              placeholder="OBSERVAÇÕES ADICIONAIS, HISTÓRICO CLÍNICO, DETALHES DE RECEBIMENTO..."
+              placeholder="OBSERVAÇÕES CLÍNICAS, HISTÓRICO, QUEIXA PRINCIPAL, DETALHES DE RECEBIMENTO..."
               value={formData.observacoes}
               onChange={(e) => setFormData({ ...formData, observacoes: e.target.value.toUpperCase() })}
               className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed resize-y"
@@ -633,7 +600,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
               className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-lg shadow-blue-500/20 transition flex items-center gap-2 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Salvando...' : 'Salvar Paciente/Pedido'}</span>
+              <span>{isSubmitting ? 'Salvando...' : 'Salvar Paciente'}</span>
             </button>
           </div>
 

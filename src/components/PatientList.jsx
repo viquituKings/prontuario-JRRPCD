@@ -51,6 +51,8 @@ export default function PatientList({
       const search = searchTerm.toUpperCase().trim();
       const matchSearch = !search || (
         (p.nome && p.nome.toUpperCase().includes(search)) ||
+        (p.cpf && p.cpf.includes(search)) ||
+        (p.nome_mae && p.nome_mae.toUpperCase().includes(search)) ||
         (p.cid && p.cid.toUpperCase().includes(search)) ||
         (p.municipio && p.municipio.toUpperCase().includes(search)) ||
         (p.esf && p.esf.toUpperCase().includes(search)) ||
@@ -206,14 +208,18 @@ export default function PatientList({
                         {dataEntrada}
                       </td>
 
-                      {/* Nome do Paciente */}
+                      {/* Nome do Paciente, Mãe e CPF */}
                       <td className="p-4 font-bold text-slate-900 group-hover:text-blue-600 transition">
                         <div>{p.nome}</div>
-                        {p.telefone && (
-                          <div className="text-[11px] text-slate-400 font-normal">
-                            {p.telefone}
+                        {(p.nome_mae || p.nomeMae) && (
+                          <div className="text-[11px] text-slate-500 font-medium truncate max-w-[220px]">
+                            Mãe: {p.nome_mae || p.nomeMae}
                           </div>
                         )}
+                        <div className="text-[10px] text-slate-400 font-normal flex items-center gap-1.5 mt-0.5">
+                          {p.cpf && <span className="font-mono bg-slate-100 px-1 py-0.2 rounded text-slate-600">CPF: {p.cpf}</span>}
+                          {p.telefone && <span>{p.telefone}</span>}
+                        </div>
                       </td>
 
                       {/* DN / Idade */}

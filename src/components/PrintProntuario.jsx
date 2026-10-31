@@ -9,6 +9,7 @@ export default function PrintProntuario({ patient, onClose }) {
   const opms = patient.opm_list || [];
   const dataEntrada = patient.data_entrada || patient.dataEntrada || '-';
   const dn = patient.dn || patient.dataNascimento || '-';
+  const nomeMae = patient.nome_mae || patient.nomeMae || '-';
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm flex flex-col items-center p-4">
@@ -40,10 +41,10 @@ export default function PrintProntuario({ patient, onClose }) {
         <div className="border-b-2 border-slate-900 pb-4 mb-5 flex items-center justify-between">
           <div>
             <h1 className="text-lg font-black tracking-wide text-slate-900 uppercase">
-              GESTÃO JUNTA • PRONTUÁRIO & PROTOCOLO OPM
+              JRRPCD • PRONTUÁRIO CLÍNICO & GESTÃO DE OPM
             </h1>
             <p className="text-[11px] text-slate-600 font-medium">
-              Rede de Cuidados à Pessoa com Deficiência • Concessão de OPM e Reabilitação
+              Rede de Cuidados à Pessoa com Deficiência • Reabilitação e Tecnologia Assistiva
             </p>
           </div>
           <div className="text-right text-[11px] text-slate-500">
@@ -58,10 +59,15 @@ export default function PrintProntuario({ patient, onClose }) {
             1. Dados de Identificação do Paciente
           </h2>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-50 p-3.5 rounded-lg border border-slate-200">
             <div className="col-span-2">
               <span className="text-slate-500 block text-[10px]">Nome do Paciente:</span>
               <strong className="text-sm font-bold text-slate-900">{patient.nome}</strong>
+            </div>
+
+            <div>
+              <span className="text-slate-500 block text-[10px]">CPF:</span>
+              <span className="text-slate-800 font-mono font-bold">{patient.cpf || 'Não informado'}</span>
             </div>
 
             <div>
@@ -69,9 +75,9 @@ export default function PrintProntuario({ patient, onClose }) {
               <strong className="text-slate-800">{dataEntrada}</strong>
             </div>
 
-            <div>
-              <span className="text-slate-500 block text-[10px]">Serviço Especializado:</span>
-              <span className="font-bold text-blue-800">{servico}</span>
+            <div className="col-span-2">
+              <span className="text-slate-500 block text-[10px]">Nome da Mãe:</span>
+              <strong className="text-slate-800">{nomeMae}</strong>
             </div>
 
             <div>
@@ -94,53 +100,22 @@ export default function PrintProntuario({ patient, onClose }) {
               <span className="text-slate-800 font-semibold">{patient.municipio || '-'}</span>
             </div>
 
-            <div className="col-span-2">
+            <div>
               <span className="text-slate-500 block text-[10px]">ESF de Referência:</span>
               <span className="text-slate-800">{patient.esf || patient.esfReferencia || '-'}</span>
             </div>
 
-            <div className="col-span-2">
-              <span className="text-slate-500 block text-[10px]">Remetente:</span>
-              <span className="text-slate-800">{patient.remetente || '-'}</span>
+            <div>
+              <span className="text-slate-500 block text-[10px]">Serviço Especializado:</span>
+              <span className="font-bold text-blue-800">{servico}</span>
             </div>
           </div>
         </div>
 
-        {/* Bloco 2: Avaliação da Junta e Status */}
+        {/* Bloco 2: Diagnóstico e OPMs Solicitadas */}
         <div className="mb-5">
           <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-300 pb-1 mb-2.5">
-            2. Informações de Avaliação da Junta e Protocolo
-          </h2>
-
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-slate-50 p-3 rounded-lg border border-slate-200">
-            <div>
-              <span className="text-slate-500 block text-[10px]">Avaliação da Junta:</span>
-              <strong className="text-slate-800">{patient.avaliacao_junta || '-'}</strong>
-            </div>
-
-            <div>
-              <span className="text-slate-500 block text-[10px]">Data de Avaliação/Envio:</span>
-              <span className="text-slate-800 font-semibold">{patient.data_avaliacao || '-'}</span>
-            </div>
-
-            <div>
-              <span className="text-slate-500 block text-[10px]">Presença:</span>
-              <span className="font-bold text-slate-800">{patient.presenca || '-'}</span>
-            </div>
-
-            <div>
-              <span className="text-slate-500 block text-[10px]">Status / Data da Alta:</span>
-              <span className="font-bold text-slate-800">
-                {patient.status || '-'} {patient.data_alta ? `(Alta: ${patient.data_alta})` : ''}
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Bloco 3: Diagnóstico e OPMs Solicitadas */}
-        <div className="mb-5">
-          <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-300 pb-1 mb-2.5">
-            3. Diagnóstico Clínico e OPMs Solicitadas
+            2. Diagnóstico Clínico e OPMs Solicitadas
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -166,11 +141,11 @@ export default function PrintProntuario({ patient, onClose }) {
           </div>
         </div>
 
-        {/* Bloco 4: Observações e Prontuário */}
+        {/* Bloco 3: Observações e Prontuário */}
         {(patient.observacoes || patient.prontuarioObservacoes) && (
           <div className="mb-5">
             <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-300 pb-1 mb-1.5">
-              4. Prontuário e Observações Adicionais
+              3. Prontuário e Observações Clínicas
             </h2>
             <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs leading-relaxed text-slate-800 whitespace-pre-wrap">
               {patient.observacoes || patient.prontuarioObservacoes}
@@ -178,10 +153,10 @@ export default function PrintProntuario({ patient, onClose }) {
           </div>
         )}
 
-        {/* Bloco 5: Histórico de Evoluções Clínicas */}
+        {/* Bloco 4: Histórico de Evoluções Clínicas */}
         <div className="mb-8">
           <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-300 pb-1 mb-2.5">
-            5. Histórico de Evoluções Clínicas ({evolucoes.length})
+            4. Histórico de Evoluções Clínicas ({evolucoes.length})
           </h2>
 
           {evolucoes.length === 0 ? (
@@ -223,7 +198,7 @@ export default function PrintProntuario({ patient, onClose }) {
           <div>
             <div className="border-t border-slate-400 mx-auto w-3/4 mb-1"></div>
             <span className="font-semibold text-slate-700 block">Carimbo e Assinatura do Profissional</span>
-            <span className="text-[10px] text-slate-500">Equipe Multidisciplinar / Junta</span>
+            <span className="text-[10px] text-slate-500">Equipe Multidisciplinar</span>
           </div>
         </div>
 
