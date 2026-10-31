@@ -17,7 +17,8 @@ import {
   verificarCompatibilidadeMotorizada,
   extrairPacientesUnicos,
   contarOpmsSolicitadas,
-  getBadgeColorServico
+  getBadgeColorServico,
+  temOpmSolicitada
 } from '../types';
 
 export default function PatientList({
@@ -303,7 +304,7 @@ export default function PatientList({
                               </span>
                             ))}
                           </div>
-                        ) : p.tipoOpm ? (
+                        ) : (temOpmSolicitada(p) && p.tipoOpm) ? (
                           <span className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-semibold border border-blue-100">
                             {p.tipoOpm}
                           </span>

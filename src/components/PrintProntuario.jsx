@@ -3,7 +3,8 @@ import {
   formatarDataHoraBR,
   formatarDataBR,
   isMotorizadaSolicitada,
-  verificarCompatibilidadeMotorizada
+  verificarCompatibilidadeMotorizada,
+  temOpmSolicitada
 } from '../types';
 
 export default function PrintProntuario({ patient, onClose }) {
@@ -158,7 +159,9 @@ export default function PrintProntuario({ patient, onClose }) {
                   ))}
                 </div>
               ) : (
-                <p className="text-xs font-bold text-slate-900 mt-0.5">{patient.tipoOpm || '-'}</p>
+                <p className="text-xs font-bold text-slate-900 mt-0.5">
+                  {temOpmSolicitada(patient) ? (patient.tipoOpm || '-') : 'Nenhuma OPM solicitada'}
+                </p>
               )}
             </div>
           </div>

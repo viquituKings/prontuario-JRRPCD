@@ -26,7 +26,8 @@ import {
   formatarDataBR,
   isMotorizadaSolicitada, 
   verificarCompatibilidadeMotorizada,
-  getBadgeColorServico
+  getBadgeColorServico,
+  temOpmSolicitada
 } from '../types';
 
 export default function PatientDetailsModal({
@@ -204,23 +205,25 @@ export default function PatientDetailsModal({
             <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-100 space-y-1">
               <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-900 uppercase tracking-wider">
                 <Accessibility className="w-4 h-4 text-indigo-600" />
-                <span>OPMs Solicitadas ({opms.length})</span>
+                <span>OPMs Solicitadas ({temOpmSolicitada(patient) ? (opms.length > 0 ? opms.length : 1) : 0})</span>
               </div>
-              {opms.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {opms.map((o, idx) => (
-                    <span 
-                      key={idx}
-                      className="px-2.5 py-1 bg-white rounded-lg border border-indigo-200 text-indigo-900 font-bold text-xs shadow-sm"
-                    >
-                      {o.tipo}: {o.solicitada}
-                    </span>
-                  ))}
-                </div>
-              ) : patient.tipoOpm ? (
-                <p className="text-sm font-bold text-slate-900 mt-1">{patient.tipoOpm}</p>
+              {temOpmSolicitada(patient) ? (
+                opms.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {opms.map((o, idx) => (
+                      <span 
+                        key={idx}
+                        className="px-2.5 py-1 bg-white rounded-lg border border-indigo-200 text-indigo-900 font-bold text-xs shadow-sm"
+                      >
+                        {o.tipo}: {o.solicitada}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm font-bold text-slate-900 mt-1">{patient.tipoOpm}</p>
+                )
               ) : (
-                <p className="text-xs text-slate-400 italic mt-1">Nenhuma OPM vinculada.</p>
+                <p className="text-xs text-slate-400 italic mt-1">Nenhuma OPM solicitada para este paciente.</p>
               )}
 
               {/* Destaque de Protocolo para Cadeira Motorizada */}

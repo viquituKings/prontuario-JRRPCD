@@ -11,7 +11,7 @@ import {
   Sparkles,
   FileText
 } from 'lucide-react';
-import { OPMS_SUGERIDAS, formatarDataBR } from '../types';
+import { OPMS_SUGERIDAS, formatarDataBR, temOpmSolicitada } from '../types';
 
 export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   const getHojeIsoDate = () => {
@@ -22,9 +22,40 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
     return `${year}-${month}-${day}`;
   };
 
+  // Identificação do tipo de serviço do paciente
+  const servico = patient?.servico_especializado || 'OPM';
+
+  // Regra fundamental: o preenchimento de dispositivos deferidos deve estar disponível
+  // EXCLUSIVAMENTE para pacientes com OPM solicitados
+  const hasOpmSolicitada = temOpmSolicitada(patient);
+
+  const isOPM = hasOpmSolicitada;
+  const isIntelectual = !isOPM && servico === 'Reab. Intelectual';
+  const isFisicaVisualNeonato = !isOPM && !isIntelectual;
+
+  // Lista de OPMs solicitadas pelo paciente
+  const opmsSolicitadasDoPaciente = [];
+  if (Array.isArray(patient?.opm_list)) {
+    patient.opm_list.forEach((o) => {
+      if (o?.solicitada && o.solicitada.trim()) {
+        opmsSolicitadasDoPaciente.push({ tipo: o.tipo, solicitada: o.solicitada.trim() });
+      }
+    });
+  }
+  if (opmsSolicitadasDoPaciente.length === 0 && typeof patient?.tipoOpm === 'string' && patient.tipoOpm.trim()) {
+    const cleanTipo = patient.tipoOpm.trim();
+    const servicosIgnorados = ['opm', 'reab. intelectual', 'reab. fisica', 'reab. visual', 'reabilitação visual', 'neonato de risco'];
+    if (!servicosIgnorados.includes(cleanTipo.toLowerCase())) {
+      opmsSolicitadasDoPaciente.push({ tipo: 'OPM', solicitada: cleanTipo });
+    }
+  }
+
   const initialFormState = () => ({
     // Caso 1: Pacientes OPM (lista de dispositivo deferido + data)
-    dispositivos: [{ dispositivo: '', data: getHojeIsoDate() }],
+    dispositivos: [{ 
+      dispositivo: (isOPM && opmsSolicitadasDoPaciente.length > 0) ? opmsSolicitadasDoPaciente[0].solicitada.toUpperCase() : '', 
+      data: getHojeIsoDate() 
+    }],
     // Caso 2: Categoria Intelectual (CER II ou CRTEA)
     opcaoIntelectual: '',
     // Caso 3: Reabilitação Física, Visual e Neonato de Risco
@@ -50,12 +81,6 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   }, [isOpen, patient?.id]);
 
   if (!isOpen || !patient) return null;
-
-  // Identificação do tipo de serviço do paciente
-  const servico = patient.servico_especializado || (patient.tipoOpm ? 'OPM' : 'OPM');
-  const isOPM = servico === 'OPM' || Boolean(patient.tipoOpm) || (patient.opm_list && patient.opm_list.length > 0 && patient.opm_list.some((o) => o.solicitada));
-  const isIntelectual = servico === 'Reab. Intelectual';
-  const isFisicaVisualNeonato = !isOPM && !isIntelectual;
 
   // Manipulação dos dispositivos deferidos (Caso OPM)
   const handleAddDispositivo = () => {
@@ -181,6 +206,11 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
               <span className="bg-white/20 text-white px-2 py-0.5 rounded text-[10px] font-bold">
                 {servico}
               </span>
+              {hasOpmSolicitada && (
+                <span className="bg-amber-400 text-amber-950 px-2 py-0.5 rounded text-[10px] font-bold">
+                  OPM Solicitada
+                </span>
+              )}
             </p>
           </div>
           <button
@@ -227,6 +257,37 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
                   <span>Adicionar Outro Dispositivo</span>
                 </button>
               </div>
+
+              {/* Destaque das OPMs solicitadas no cadastro do paciente */}
+              {opmsSolicitadasDoPaciente.length > 0 && (
+                <div className="bg-indigo-50/80 border border-indigo-200 p-2.5 rounded-xl text-xs flex flex-wrap items-center gap-2">
+                  <span className="text-[11px] font-bold text-indigo-900">
+                    OPM(s) Solicitada(s) no cadastro:
+                  </span>
+                  {opmsSolicitadasDoPaciente.map((item, oIdx) => (
+                    <button
+                      key={oIdx}
+                      type="button"
+                      onClick={() => {
+                        setFormData((prev) => {
+                          const list = [...prev.dispositivos];
+                          const emptyIdx = list.findIndex((d) => !d.dispositivo.trim());
+                          if (emptyIdx !== -1) {
+                            list[emptyIdx] = { ...list[emptyIdx], dispositivo: item.solicitada.toUpperCase() };
+                          } else {
+                            list.push({ dispositivo: item.solicitada.toUpperCase(), data: getHojeIsoDate() });
+                          }
+                          return { ...prev, dispositivos: list };
+                        });
+                      }}
+                      className="bg-white hover:bg-indigo-600 hover:text-white text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-300 shadow-2xs transition"
+                      title="Clique para preencher como Dispositivo Deferido"
+                    >
+                      + {item.solicitada}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="space-y-3">
                 {formData.dispositivos.map((item, idx) => (

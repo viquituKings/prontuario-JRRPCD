@@ -163,6 +163,45 @@ export function isMotorizadaSolicitada(opmList = [], tipoOpm = '') {
   return false;
 }
 
+/**
+ * Verifica se o paciente possui ao menos uma OPM solicitada.
+ * O preenchimento de dispositivos deferidos no formulário de prontuário deve estar disponível
+ * exclusivamente para pacientes com OPM solicitados.
+ */
+export function temOpmSolicitada(patient) {
+  if (!patient) return false;
+
+  // 1. Verifica se há OPM preenchida na lista opm_list
+  if (Array.isArray(patient.opm_list) && patient.opm_list.length > 0) {
+    const hasValidOpm = patient.opm_list.some(
+      (o) => o && typeof o.solicitada === 'string' && o.solicitada.trim().length > 0
+    );
+    if (hasValidOpm) return true;
+  }
+
+  // 2. Verifica no campo tipoOpm (compatibilidade legada) se não for apenas o nome de um serviço
+  if (typeof patient.tipoOpm === 'string' && patient.tipoOpm.trim().length > 0) {
+    const cleanTipo = patient.tipoOpm.trim().toLowerCase();
+    const servicosIgnorados = [
+      'opm',
+      'reab. intelectual',
+      'reab. intelectual;',
+      'reab. fisica',
+      'reab. fisica;',
+      'reab. visual',
+      'reab. visual;',
+      'reabilitação visual',
+      'neonato de risco',
+      'neonato de risco;'
+    ];
+    if (!servicosIgnorados.includes(cleanTipo)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 // Municípios da Microrregião de Saúde / Referência Regional
 export const MUNICIPIOS_SUGERIDOS = [
   'SETE LAGOAS',
@@ -337,7 +376,7 @@ export function contarOpmsSolicitadas(pacientes = []) {
   let total = 0;
   for (const p of pacientes) {
     if (!p) continue;
-    if (p.servico_especializado === 'OPM' || (!p.servico_especializado && p.tipoOpm)) {
+    if (temOpmSolicitada(p)) {
       if (p.opm_list && Array.isArray(p.opm_list) && p.opm_list.length > 0) {
         const validOpms = p.opm_list.filter((o) => o.solicitada && o.solicitada.trim());
         total += validOpms.length > 0 ? validOpms.length : 1;

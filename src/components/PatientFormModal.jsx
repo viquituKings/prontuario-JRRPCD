@@ -397,7 +397,7 @@ export default function PatientFormModal({
           cid: joinedCid,
           observacoes: formData.observacoes.toUpperCase(),
           opm_list: cleanOpmList,
-          tipoOpm: cleanOpmList.map((o) => `${o.tipo}: ${o.solicitada}`).join('; ') || formData.servico_especializado,
+          tipoOpm: cleanOpmList.map((o) => `${o.tipo}: ${o.solicitada}`).join('; '),
           nomeMae: removerAcentos(formData.nome_mae),
           dataEntrada: formData.data_entrada,
           dataNascimento: formData.dn,
