@@ -18,10 +18,12 @@ import {
   CreditCard,
   CheckCircle2,
   AlertTriangle,
-  Zap
+  Zap,
+  Brain
 } from 'lucide-react';
 import { 
   formatarDataHoraBR, 
+  formatarDataBR,
   isMotorizadaSolicitada, 
   verificarCompatibilidadeMotorizada,
   getBadgeColorServico
@@ -309,14 +311,19 @@ export default function PatientDetailsModal({
 
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2 hover:border-teal-200 transition">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-100 pb-2">
-                        <div>
+                        <div className="flex items-center flex-wrap gap-1.5">
+                          {evo.tipoRegistro && (
+                            <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold uppercase rounded border border-slate-200">
+                              {evo.tipoRegistro === 'OPM' ? 'Dispositivo OPM' : evo.tipoRegistro === 'Intelectual' ? 'Reab. Intelectual' : 'Evolução'}
+                            </span>
+                          )}
                           {evo.tipoAtendimento && (
-                            <span className="inline-block px-2 py-0.5 bg-teal-50 text-teal-800 text-[11px] font-semibold rounded border border-teal-200 mr-2">
+                            <span className="inline-block px-2 py-0.5 bg-teal-50 text-teal-800 text-[11px] font-semibold rounded border border-teal-200">
                               {evo.tipoAtendimento}
                             </span>
                           )}
                           <span className="text-xs text-slate-600 font-semibold">
-                            {formatarDataHoraBR(evo.dataHora)}
+                            {formatarDataHoraBR(evo.dataHora || evo.data)}
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
@@ -340,22 +347,63 @@ export default function PatientDetailsModal({
                         </div>
                       </div>
 
-                      {/* Descrição do Dispositivo (caso preenchido) */}
-                      {evo.descricaoDispositivo && (
-                        <div className="bg-indigo-50/70 border border-indigo-200 p-2.5 rounded-lg text-xs space-y-0.5">
-                          <strong className="text-indigo-950 block font-bold flex items-center gap-1.5">
-                            <Accessibility className="w-3.5 h-3.5 text-indigo-600" />
-                            Descrição do Dispositivo:
+                      {/* Caso 1: Dispositivos Deferidos (OPM) */}
+                      {evo.dispositivosDeferidos && Array.isArray(evo.dispositivosDeferidos) && evo.dispositivosDeferidos.length > 0 ? (
+                        <div className="bg-indigo-50/70 border border-indigo-200 p-3 rounded-xl space-y-2">
+                          <strong className="text-indigo-950 text-xs font-bold flex items-center gap-1.5 uppercase tracking-wide">
+                            <Accessibility className="w-4 h-4 text-indigo-600" />
+                            Dispositivo(s) Deferido(s):
                           </strong>
-                          <p className="text-indigo-900 whitespace-pre-wrap font-medium">
-                            {evo.descricaoDispositivo}
-                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                            {evo.dispositivosDeferidos.map((d, dIdx) => (
+                              <div key={dIdx} className="bg-white border border-indigo-200/80 rounded-lg p-2.5 flex items-center justify-between shadow-xs">
+                                <span className="font-bold text-xs text-slate-900 uppercase">
+                                  {d.dispositivo}
+                                </span>
+                                <span className="text-[10px] font-bold bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded border border-indigo-200">
+                                  {formatarDataBR(d.data)}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        evo.descricaoDispositivo && (
+                          <div className="bg-indigo-50/70 border border-indigo-200 p-2.5 rounded-lg text-xs space-y-0.5">
+                            <strong className="text-indigo-950 block font-bold flex items-center gap-1.5">
+                              <Accessibility className="w-3.5 h-3.5 text-indigo-600" />
+                              Descrição do Dispositivo:
+                            </strong>
+                            <p className="text-indigo-900 whitespace-pre-wrap font-medium">
+                              {evo.descricaoDispositivo}
+                            </p>
+                          </div>
+                        )
+                      )}
+
+                      {/* Caso 2: Categoria Intelectual (CER II ou CRTEA) */}
+                      {evo.opcaoIntelectual && (
+                        <div className="bg-purple-50/80 border border-purple-200 p-3 rounded-xl flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold shrink-0">
+                            <Brain className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-purple-700 block">
+                              Encaminhamento / Modalidade:
+                            </span>
+                            <span className="text-sm font-black text-purple-950">
+                              {evo.opcaoIntelectual === 'CRTEA' ? '(CRTEA) Centro de Referência em TEA' : 'CER II - Centro Especializado em Reabilitação'}
+                            </span>
+                          </div>
                         </div>
                       )}
 
-                      <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
-                        {evo.descricao}
-                      </p>
+                      {/* Caso 3 / Texto da Evolução (apenas se não for OPM estruturado nem Intelectual) */}
+                      {evo.descricao && !evo.dispositivosDeferidos && !evo.opcaoIntelectual && (
+                        <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-medium">
+                          {evo.descricao}
+                        </p>
+                      )}
 
                       {evo.conduta && (
                         <div className="mt-2 pt-2 border-t border-slate-100 bg-slate-50/70 p-2.5 rounded-lg text-xs">

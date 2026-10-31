@@ -470,10 +470,34 @@ export function formatarMascaraData(valor) {
 }
 
 /**
+ * Formata data (YYYY-MM-DD, DD/MM/AAAA ou ISO) para DD/MM/AAAA
+ */
+export function formatarDataBR(dataStr) {
+  if (!dataStr) return '-';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dataStr)) {
+    const [ano, mes, dia] = dataStr.split('-');
+    return `${dia}/${mes}/${ano}`;
+  }
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dataStr)) {
+    return dataStr;
+  }
+  try {
+    const d = new Date(dataStr);
+    if (isNaN(d.getTime())) return dataStr;
+    return d.toLocaleDateString('pt-BR');
+  } catch {
+    return dataStr;
+  }
+}
+
+/**
  * Formata data ISO para exibição amigável
  */
 export function formatarDataHoraBR(dataIso) {
   if (!dataIso) return '-';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dataIso)) {
+    return formatarDataBR(dataIso);
+  }
   try {
     const d = new Date(dataIso);
     if (isNaN(d.getTime())) return dataIso;

@@ -1,6 +1,7 @@
 import React from 'react';
 import { 
   formatarDataHoraBR,
+  formatarDataBR,
   isMotorizadaSolicitada,
   verificarCompatibilidadeMotorizada
 } from '../types';
@@ -212,20 +213,45 @@ export default function PrintProntuario({ patient, onClose }) {
                 <div key={evo.id || idx} className="border border-slate-300 rounded-lg p-3 space-y-1.5">
                   <div className="flex justify-between items-center text-[11px] border-b border-slate-200 pb-1 font-semibold text-slate-700">
                     <span>
-                      {formatarDataHoraBR(evo.dataHora)} {evo.tipoAtendimento ? <>• <strong className="text-blue-800">{evo.tipoAtendimento}</strong></> : null}
+                      {formatarDataHoraBR(evo.dataHora || evo.data)} {evo.tipoAtendimento ? <>• <strong className="text-blue-800">{evo.tipoAtendimento}</strong></> : null}
                     </span>
                     {evo.profissional && <span>{evo.profissional}</span>}
                   </div>
 
-                  {evo.descricaoDispositivo && (
-                    <div className="text-[11px] bg-indigo-50/60 p-2 rounded border border-indigo-200 text-indigo-950 font-medium">
-                      <strong>Descrição do Dispositivo:</strong> {evo.descricaoDispositivo}
+                  {/* Caso 1: Dispositivos Deferidos (OPM) */}
+                  {evo.dispositivosDeferidos && Array.isArray(evo.dispositivosDeferidos) && evo.dispositivosDeferidos.length > 0 ? (
+                    <div className="bg-slate-50 p-2.5 rounded border border-slate-200 space-y-1.5">
+                      <strong className="text-[11px] text-slate-900 block font-bold">Dispositivo(s) Deferido(s):</strong>
+                      <div className="space-y-1">
+                        {evo.dispositivosDeferidos.map((d, dIdx) => (
+                          <div key={dIdx} className="text-xs text-slate-800 flex items-center justify-between border-b border-slate-100 last:border-b-0 pb-0.5">
+                            <span className="font-bold">• {d.dispositivo}</span>
+                            <span className="text-[11px] text-slate-600 font-semibold">Data do Deferimento: {formatarDataBR(d.data)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    evo.descricaoDispositivo && (
+                      <div className="text-[11px] bg-indigo-50/60 p-2 rounded border border-indigo-200 text-indigo-950 font-medium">
+                        <strong>Descrição do Dispositivo:</strong> {evo.descricaoDispositivo}
+                      </div>
+                    )
+                  )}
+
+                  {/* Caso 2: Categoria Intelectual (CER II ou CRTEA) */}
+                  {evo.opcaoIntelectual && (
+                    <div className="text-[11px] bg-purple-50/60 p-2 rounded border border-purple-200 text-purple-950">
+                      <strong>Encaminhamento / Modalidade:</strong> <span className="font-bold">{evo.opcaoIntelectual === 'CRTEA' ? '(CRTEA) Centro de Referência em TEA' : 'CER II - Centro Especializado em Reabilitação'}</span>
                     </div>
                   )}
 
-                  <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
-                    {evo.descricao}
-                  </p>
+                  {/* Caso 3 / Texto da Evolução */}
+                  {evo.descricao && !evo.dispositivosDeferidos && !evo.opcaoIntelectual && (
+                    <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
+                      {evo.descricao}
+                    </p>
+                  )}
 
                   {evo.conduta && (
                     <div className="text-[11px] bg-slate-50 p-2 rounded border border-slate-200 text-slate-700">
