@@ -38,32 +38,27 @@ export const OPMS_SUGERIDAS = [
 // Municípios da Microrregião de Saúde / Referência Regional
 export const MUNICIPIOS_SUGERIDOS = [
   'SETE LAGOAS',
-  'FUNILÂNDIA',
+  'ARAÇAI',
   'BALDIM',
+  'BIQUINHAS',
   'CACHOEIRA DA PRATA',
-  'CAETANÓPOLIS',
+  'CAETANOPOLIS',
   'CAPIM BRANCO',
+  'CENDRO DE ABAETE',
   'CORDISBURGO',
   'FORTUNA DE MINAS',
-  'INHAÚMA',
+  'FUNILÂNDIA',
+  'INHAUMA',
   'JEQUITIBÁ',
   'MARAVILHAS',
-  'MATOZINHOS',
+  'MORADA NOVA DE MINAS',
+  'PAINEIRAS',
   'PAPAGAIOS',
   'PARAOPEBA',
-  'PEQUI',
+  'POMPEU',
   'PRUDENTE DE MORAIS',
-  'SANTANA DE PIRAPAMA',
-  'SANTANA DO RIACHO',
-  'SÃO JOSÉ DA LAPA',
-  'BELO HORIZONTE',
-  'CONTAGEM',
-  'BETIM',
-  'CURVELO',
-  'PEDRO LEOPOLDO',
-  'RIBEIRÃO DAS NEVES',
-  'SANTA LUZIA',
-  'VESPASIANO'
+  'QUARTEL GERAL',
+  'SANTANA DE PIRAPAMA'
 ];
 
 // Unidades Básicas de Saúde e ESFs de Referência

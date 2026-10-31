@@ -11,6 +11,7 @@ import {
   Clock,
   UserCheck
 } from 'lucide-react';
+import { MUNICIPIOS_SUGERIDOS } from '../types';
 
 export default function PatientList({
   pacientes,
@@ -127,13 +128,18 @@ export default function PatientList({
             <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">
               Filtrar por Município
             </label>
-            <input
-              type="text"
+            <select
               value={filterMunicipio}
               onChange={(e) => setFilterMunicipio(e.target.value)}
-              placeholder="EX: FUNILANDIA, SETE LAGOAS"
-              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+            >
+              <option value="">TODOS OS MUNICÍPIOS</option>
+              {MUNICIPIOS_SUGERIDOS.map((m) => (
+                <option key={m} value={m}>
+                  {m}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Botão Limpar Filtros */}
