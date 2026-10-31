@@ -15,9 +15,16 @@ import {
   Trash2,
   UserCheck,
   Heart,
-  CreditCard
+  CreditCard,
+  CheckCircle2,
+  AlertTriangle,
+  Zap
 } from 'lucide-react';
-import { formatarDataHoraBR } from '../types';
+import { 
+  formatarDataHoraBR, 
+  isMotorizadaSolicitada, 
+  verificarCompatibilidadeMotorizada 
+} from '../types';
 
 export default function PatientDetailsModal({
   isOpen,
@@ -38,6 +45,9 @@ export default function PatientDetailsModal({
     : patient.cid
     ? patient.cid.split(';').map((c) => c.trim()).filter(Boolean)
     : [];
+
+  const hasMotorizada = isMotorizadaSolicitada(opms, patient.tipoOpm);
+  const statusMotorizada = hasMotorizada ? verificarCompatibilidadeMotorizada(cidsList) : null;
 
   const cleanPhone = patient.telefone ? patient.telefone.replace(/\D/g, '') : '';
   const whatsappUrl = cleanPhone.length >= 10 ? `https://wa.me/55${cleanPhone}` : null;
@@ -213,6 +223,39 @@ export default function PatientDetailsModal({
                 <p className="text-sm font-bold text-slate-900 mt-1">{patient.tipoOpm}</p>
               ) : (
                 <p className="text-xs text-slate-400 italic mt-1">Nenhuma OPM vinculada.</p>
+              )}
+
+              {/* Destaque de Protocolo para Cadeira Motorizada */}
+              {hasMotorizada && (
+                <div className="mt-3 pt-2.5 border-t border-indigo-200/60">
+                  {statusMotorizada?.isCompativel ? (
+                    <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-950 flex items-start gap-2 shadow-sm text-xs">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block text-emerald-900">
+                          CID Compatível com Cadeira Motorizada
+                        </span>
+                        <span className="text-[11px] text-emerald-700">
+                          Diagnóstico ({statusMotorizada.compativeis.join('; ')}) atende aos critérios oficiais de concessão.
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-amber-950 flex items-start gap-2 shadow-sm text-xs">
+                      <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-bold block text-amber-900">
+                          CID Não Compatível c/ Cadeira Motorizada
+                        </span>
+                        <span className="text-[11px] text-amber-800">
+                          {statusMotorizada?.totalCids > 0
+                            ? 'O diagnóstico informado não consta no protocolo oficial de concessão.'
+                            : 'Nenhum CID informado para validação do protocolo de concessão.'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </div>

@@ -11,7 +11,11 @@ import {
   Clock,
   UserCheck
 } from 'lucide-react';
-import { MUNICIPIOS_SUGERIDOS } from '../types';
+import { 
+  MUNICIPIOS_SUGERIDOS,
+  isMotorizadaSolicitada,
+  verificarCompatibilidadeMotorizada
+} from '../types';
 
 export default function PatientList({
   pacientes,
@@ -205,6 +209,11 @@ export default function PatientList({
                   const dataEntrada = p.data_entrada || p.dataEntrada || '-';
                   const dn = p.dn || p.dataNascimento || '-';
                   const idadeText = p.idade ? `${p.idade}a` : '-';
+                  const cids = p.cid_list && p.cid_list.length > 0
+                    ? p.cid_list
+                    : p.cid ? p.cid.split(/[;]/).map((c) => c.trim()).filter(Boolean) : [];
+                  const hasMotorizada = isMotorizadaSolicitada(opms, p.tipoOpm);
+                  const statusMotorizada = hasMotorizada ? verificarCompatibilidadeMotorizada(cids) : null;
 
                   return (
                     <tr 
@@ -289,6 +298,27 @@ export default function PatientList({
                           </span>
                         ) : (
                           <span className="text-slate-400">-</span>
+                        )}
+
+                        {/* Indicação de Compatibilidade para Cadeira Motorizada */}
+                        {hasMotorizada && (
+                          <div className="mt-1">
+                            {statusMotorizada?.isCompativel ? (
+                              <span 
+                                className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded text-[9px] font-bold border border-emerald-300"
+                                title={`Compatível com Motorizada pelo CID: ${statusMotorizada.compativeis.join('; ')}`}
+                              >
+                                ✓ Motorizada Compatível
+                              </span>
+                            ) : (
+                              <span 
+                                className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[9px] font-bold border border-amber-300"
+                                title="CID não compatível com o protocolo de Cadeira Motorizada"
+                              >
+                                ⚠ Motorizada Não Compatível
+                              </span>
+                            )}
+                          </div>
                         )}
                       </td>
 

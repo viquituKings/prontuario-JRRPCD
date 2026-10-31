@@ -35,6 +35,110 @@ export const OPMS_SUGERIDAS = [
   'ALMOFADA DE GEL / AR'
 ];
 
+// CIDs oficiais compatíveis com a concessão de Cadeira de Rodas Motorizada (Protocolo SUS)
+export const CIDS_MOTORIZADA_COMPATIVEIS = [
+  'B91', 'E849', 'G112', 'G118', 'G120', 'G121', 'G122', 'G128', 'G129',
+  'G35', 'G379', 'G6229', 'G710', 'G712', 'G729', 'G800', 'G803',
+  'G810', 'G811', 'G819', 'G823', 'G824', 'G825', 'I694',
+  'Q051', 'Q052', 'Q056', 'Q743', 'Q748', 'Q780', 'T093', 'Z899'
+];
+
+export const CIDS_MOTORIZADA_FORMATADOS = [
+  'B91 (Sequelas de poliomielite)',
+  'E84.9 (Fibrose cística)',
+  'G11.2 (Ataxia cerebelar de início tardio)',
+  'G11.8 (Outras ataxias hereditárias)',
+  'G12.0 (Atrofia muscular espinal tipo I)',
+  'G12.1 (Outras atrofias musculares espinais)',
+  'G12.2 (Doença do neurônio motor - ELA)',
+  'G12.8 (Outras atrofias musculares espinais)',
+  'G12.9 (Atrofia muscular espinal NE)',
+  'G35 (Esclerose múltipla)',
+  'G37.9 (Doença desmielinizante do SNC)',
+  'G62.29 (Polineuropatia tóxica)',
+  'G71.0 (Distrofia muscular)',
+  'G71.2 (Miopatias congênitas)',
+  'G72.9 (Miopatia NE)',
+  'G80.0 (Paralisia cerebral quadriparética)',
+  'G80.3 (Paralisia cerebral discinética)',
+  'G81.0 (Hemiplegia flácida)',
+  'G81.1 (Hemiplegia espástica)',
+  'G81.9 (Hemiplegia NE)',
+  'G82.3 (Tetraplegia flácida)',
+  'G82.4 (Tetraplegia espástica)',
+  'G82.5 (Tetraplegia NE)',
+  'I69.4 (Sequelas de AVC)',
+  'Q05.1 (Espinha bífida torácica)',
+  'Q05.2 (Espinha bífida lombar c/ hidrocefalia)',
+  'Q05.6 (Espinha bífida lombar s/ hidrocefalia)',
+  'Q74.3 (Artrogripose congênita múltipla)',
+  'Q74.8 (Outras anomalias congênitas de membros)',
+  'Q78.0 (Osteogênese imperfeita)',
+  'T09.3 (Traumatismo da medula espinhal)',
+  'Z89.9 (Amputação de membro NE)'
+];
+
+/**
+ * Extrai o código limpo do CID para comparação (ex: 'G12.2 - ELA' -> 'G122')
+ */
+export function extrairCodigoCid(cidStr) {
+  if (!cidStr) return '';
+  const firstPart = cidStr.split('-')[0].trim();
+  return firstPart.replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+/**
+ * Verifica se a lista de CIDs possui ao menos um CID compatível com Cadeira Motorizada
+ */
+export function verificarCompatibilidadeMotorizada(cids = []) {
+  let list = [];
+  if (Array.isArray(cids)) {
+    list = cids;
+  } else if (typeof cids === 'string') {
+    list = cids.split(/[;,]/).map((c) => c.trim()).filter(Boolean);
+  }
+
+  const compativeis = [];
+
+  for (const cidItem of list) {
+    if (!cidItem) continue;
+    const cleanCode = extrairCodigoCid(cidItem);
+    if (!cleanCode) continue;
+
+    const match = CIDS_MOTORIZADA_COMPATIVEIS.find((cComp) => {
+      return cleanCode === cComp || cleanCode.startsWith(cComp) || cComp.startsWith(cleanCode);
+    });
+
+    if (match) {
+      compativeis.push(cidItem);
+    }
+  }
+
+  return {
+    isCompativel: compativeis.length > 0,
+    compativeis,
+    totalCids: list.filter(Boolean).length
+  };
+}
+
+/**
+ * Identifica se Cadeira Motorizada foi assinalada na lista de OPMs ou campo texto
+ */
+export function isMotorizadaSolicitada(opmList = [], tipoOpm = '') {
+  if (Array.isArray(opmList)) {
+    const found = opmList.some((o) => {
+      const tipo = (o.tipo || '').toUpperCase();
+      const sol = (o.solicitada || '').toUpperCase();
+      return sol.includes('MOTORIZADA') || tipo.includes('MOTORIZADA');
+    });
+    if (found) return true;
+  }
+  if (typeof tipoOpm === 'string') {
+    return tipoOpm.toUpperCase().includes('MOTORIZADA');
+  }
+  return false;
+}
+
 // Municípios da Microrregião de Saúde / Referência Regional
 export const MUNICIPIOS_SUGERIDOS = [
   'SETE LAGOAS',

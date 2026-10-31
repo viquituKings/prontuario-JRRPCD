@@ -1,5 +1,9 @@
 import React from 'react';
-import { formatarDataHoraBR } from '../types';
+import { 
+  formatarDataHoraBR,
+  isMotorizadaSolicitada,
+  verificarCompatibilidadeMotorizada
+} from '../types';
 
 export default function PrintProntuario({ patient, onClose }) {
   if (!patient) return null;
@@ -15,6 +19,9 @@ export default function PrintProntuario({ patient, onClose }) {
     : patient.cid
     ? patient.cid.split(';').map((c) => c.trim()).filter(Boolean)
     : [];
+
+  const hasMotorizada = isMotorizadaSolicitada(opms, patient.tipoOpm);
+  const statusMotorizada = hasMotorizada ? verificarCompatibilidadeMotorizada(cidsList) : null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/80 backdrop-blur-sm flex flex-col items-center p-4">
@@ -154,6 +161,29 @@ export default function PrintProntuario({ patient, onClose }) {
               )}
             </div>
           </div>
+
+          {/* Avaliação de Protocolo para Cadeira Motorizada */}
+          {hasMotorizada && (
+            <div className="mt-2.5 p-2.5 rounded-lg border text-xs flex items-center justify-between">
+              <div>
+                <span className="font-bold uppercase tracking-wider text-[11px] block">
+                  Avaliação de Protocolo • Cadeira de Rodas Motorizada
+                </span>
+                <span className="text-slate-600 text-[11px]">
+                  {statusMotorizada?.isCompativel
+                    ? `Patologia compatível pelo protocolo oficial: ${statusMotorizada.compativeis.join('; ')}`
+                    : 'CID(s) cadastrado(s) não constam na relação de patologias compatíveis do protocolo oficial.'}
+                </span>
+              </div>
+              <span className={`px-2 py-0.5 rounded font-black text-[10px] uppercase tracking-wider border ${
+                statusMotorizada?.isCompativel
+                  ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+                  : 'bg-amber-100 text-amber-900 border-amber-300'
+              }`}>
+                {statusMotorizada?.isCompativel ? '✓ Protocolo Compatível' : '⚠ Não Compatível'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Bloco 3: Observações e Prontuário */}

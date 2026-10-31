@@ -16,7 +16,11 @@ import {
   Heart,
   CreditCard,
   CheckCircle,
-  AlertCircle
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+  Zap,
+  Info
 } from 'lucide-react';
 import FloatingSelectMenu from './FloatingSelectMenu';
 import CidAutocompleteInput from './CidAutocompleteInput';
@@ -32,7 +36,9 @@ import {
   formatarMascaraData,
   formatarCPF,
   validarCPF,
-  removerAcentos
+  removerAcentos,
+  isMotorizadaSolicitada,
+  verificarCompatibilidadeMotorizada
 } from '../types';
 
 export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdit }) {
@@ -271,6 +277,8 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
   };
 
   const validCidsCount = formData.cid_list.filter((c) => c.trim()).length;
+  const hasMotorizada = isMotorizadaSolicitada(formData.opm_list, formData.tipoOpm);
+  const statusMotorizada = hasMotorizada ? verificarCompatibilidadeMotorizada(formData.cid_list) : null;
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">
@@ -612,6 +620,56 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
                   </div>
                 ))}
               </div>
+
+              {/* Alerta de Protocolo: Cadeira Motorizada COMPATÍVEL */}
+              {hasMotorizada && statusMotorizada?.isCompativel && (
+                <div className="p-3.5 bg-emerald-50 border border-emerald-300 rounded-2xl text-emerald-950 flex items-start gap-3 shadow-sm animate-in fade-in">
+                  <div className="p-1.5 bg-emerald-600 text-white rounded-xl shrink-0 mt-0.5">
+                    <CheckCircle2 className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="font-bold text-xs uppercase tracking-wide flex flex-wrap items-center gap-1.5">
+                      <span className="text-emerald-900">CID Compatível com Cadeira Motorizada</span>
+                      <span className="bg-emerald-600 text-white text-[9px] px-2 py-0.5 rounded-md font-bold">
+                        Critério Protocolo SUS Atendido
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-800 leading-normal">
+                      O diagnóstico <strong>{statusMotorizada.compativeis.join('; ')}</strong> atende aos critérios oficiais de concessão de Cadeira de Rodas Motorizada.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Alerta de Protocolo: Cadeira Motorizada NÃO COMPATÍVEL */}
+              {hasMotorizada && !statusMotorizada?.isCompativel && (
+                <div className="p-3.5 bg-amber-50 border border-amber-300 rounded-2xl text-amber-950 flex items-start gap-3 shadow-sm animate-in fade-in">
+                  <div className="p-1.5 bg-amber-600 text-white rounded-xl shrink-0 mt-0.5">
+                    <AlertTriangle className="w-4 h-4" />
+                  </div>
+                  <div className="space-y-1.5 flex-1">
+                    <div className="font-bold text-xs uppercase tracking-wide flex flex-wrap items-center gap-1.5">
+                      <span className="text-amber-950">Atenção: CID Não Compatível com Cadeira Motorizada</span>
+                      <span className="bg-amber-600 text-white text-[9px] px-2 py-0.5 rounded-md font-bold">
+                        Verificação de Protocolo
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-900 leading-normal">
+                      {statusMotorizada?.totalCids > 0
+                        ? 'O(s) CID(s) preenchido(s) no cadastro não constam na relação de patologias compatíveis com Cadeira Motorizada.'
+                        : 'Preencha o campo de CID do paciente acima para checar a compatibilidade com a concessão da Cadeira de Rodas Motorizada.'}
+                    </p>
+                    <div className="text-[10px] text-amber-900/90 pt-1 border-t border-amber-200/80">
+                      <span className="font-bold block mb-1">
+                        CIDs compatíveis segundo protocolo (32 CIDs):
+                      </span>
+                      <div className="font-mono text-[9px] bg-white p-2 rounded-xl border border-amber-200 leading-relaxed text-slate-700 max-h-24 overflow-y-auto">
+                        B91, E84.9, G11.2, G11.8, G12.0, G12.1, G12.2, G12.8, G12.9, G35, G37.9, G62.29, G71.0, G71.2, G72.9, G80.0, G80.3, G81.0, G81.1, G81.9, G82.3, G82.4, G82.5, I69.4, Q05.1, Q05.2, Q05.6, Q74.3, Q74.8, Q78.0, T09.3, Z89.9
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
