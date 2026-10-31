@@ -180,3 +180,4 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
     </div>
   );
 }
+

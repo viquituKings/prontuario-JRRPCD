@@ -128,14 +128,18 @@ export function subscribePacientes(onUpdate, onError) {
 
   if (db) {
     try {
-      const q = query(collection(db, 'pacientes'), orderBy('dataEntrada', 'desc'));
+      const q = query(collection(db, 'pacientes'));
       const unsubscribe = onSnapshot(
         q,
         (snapshot) => {
           const pacientes = snapshot.docs.map((docSnap) => ({
             id: docSnap.id,
             ...docSnap.data(),
-          }));
+          })).sort((a, b) => {
+            const timeA = new Date(a.createdAt || a.updatedAt || 0).getTime();
+            const timeB = new Date(b.createdAt || b.updatedAt || 0).getTime();
+            return timeB - timeA;
+          });
           onUpdate(pacientes);
         },
         (error) => {

@@ -1,28 +1,16 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Search, 
-  Filter, 
-  User, 
-  Phone, 
-  MapPin, 
-  Building2, 
-  Stethoscope, 
-  Accessibility, 
-  Clock, 
-  FileText, 
-  MoreVertical, 
-  Printer, 
+  Eye, 
   Edit3, 
   Trash2, 
   PlusCircle, 
-  Eye, 
-  ArrowUpDown,
-  ExternalLink
+  Printer, 
+  RotateCcw,
+  Sparkles,
+  Clock,
+  UserCheck
 } from 'lucide-react';
-import { 
-  formatarDataBR, 
-  STATUS_PACIENTE 
-} from '../types';
 
 export default function PatientList({
   pacientes,
@@ -31,320 +19,326 @@ export default function PatientList({
   onDeletePatient,
   onOpenEvolutionModal,
   onPrintPatient,
-  activeStatusFilter,
-  onClearStatusFilter
+  activeServicoFilter,
+  onSelectServicoFilter
 }) {
+  const [filterServico, setFilterServico] = useState('');
+  const [filterCid, setFilterCid] = useState('');
+  const [filterMunicipio, setFilterMunicipio] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedOpmFilter, setSelectedOpmFilter] = useState('todos');
-  const [sortBy, setSortBy] = useState('dataEntrada_desc');
 
-  // Obter lista única de OPMs para o filtro
-  const uniqueOpms = useMemo(() => {
-    const set = new Set();
-    pacientes.forEach((p) => {
-      if (p.tipoOpm) set.add(p.tipoOpm.trim());
-    });
-    return Array.from(set).sort();
-  }, [pacientes]);
+  // Sincroniza filtro vindo dos Cards de Estatística
+  const currentServico = activeServicoFilter && activeServicoFilter !== 'todos' 
+    ? activeServicoFilter 
+    : filterServico;
 
-  // Filtragem dos pacientes
+  // Filtragem fiel ao prontuario.example
   const filteredPacientes = useMemo(() => {
     return pacientes.filter((p) => {
-      // Filtro de texto (busca ampla)
-      const term = searchTerm.toLowerCase().trim();
-      const matchSearch = !term || (
-        (p.nome && p.nome.toLowerCase().includes(term)) ||
-        (p.cid && p.cid.toLowerCase().includes(term)) ||
-        (p.tipoOpm && p.tipoOpm.toLowerCase().includes(term)) ||
-        (p.municipio && p.municipio.toLowerCase().includes(term)) ||
-        (p.esfReferencia && p.esfReferencia.toLowerCase().includes(term)) ||
-        (p.telefone && p.telefone.includes(term)) ||
-        (p.prontuarioObservacoes && p.prontuarioObservacoes.toLowerCase().includes(term))
+      // Filtro por Serviço
+      const serv = currentServico;
+      const matchServ = !serv || p.servico_especializado === serv;
+
+      // Filtro por CID
+      const cidTerm = filterCid.toUpperCase().trim();
+      const matchCid = !cidTerm || (p.cid && p.cid.toUpperCase().includes(cidTerm));
+
+      // Filtro por Município
+      const munTerm = filterMunicipio.toUpperCase().trim();
+      const matchMun = !munTerm || (p.municipio && p.municipio.toUpperCase().includes(munTerm));
+
+      // Busca Geral
+      const search = searchTerm.toUpperCase().trim();
+      const matchSearch = !search || (
+        (p.nome && p.nome.toUpperCase().includes(search)) ||
+        (p.cid && p.cid.toUpperCase().includes(search)) ||
+        (p.municipio && p.municipio.toUpperCase().includes(search)) ||
+        (p.esf && p.esf.toUpperCase().includes(search)) ||
+        (p.telefone && p.telefone.includes(search)) ||
+        (p.observacoes && p.observacoes.toUpperCase().includes(search)) ||
+        (p.opm_list && p.opm_list.some((o) => 
+          (o.tipo && o.tipo.toUpperCase().includes(search)) || 
+          (o.solicitada && o.solicitada.toUpperCase().includes(search))
+        ))
       );
 
-      // Filtro por Status
-      const matchStatus = !activeStatusFilter || activeStatusFilter === 'todos' || (
-        activeStatusFilter === 'em_avaliacao' 
-          ? (p.status === 'triagem' || p.status === 'em_avaliacao')
-          : activeStatusFilter === 'aguardando_opm'
-          ? (p.status === 'aguardando_opm' || p.status === 'prova_ajuste')
-          : activeStatusFilter === 'concluido'
-          ? (p.status === 'concluido' || p.status === 'acompanhamento')
-          : p.status === activeStatusFilter
-      );
-
-      // Filtro por OPM
-      const matchOpm = selectedOpmFilter === 'todos' || p.tipoOpm === selectedOpmFilter;
-
-      return matchSearch && matchStatus && matchOpm;
-    }).sort((a, b) => {
-      if (sortBy === 'dataEntrada_desc') {
-        return (b.dataEntrada || '').localeCompare(a.dataEntrada || '');
-      }
-      if (sortBy === 'dataEntrada_asc') {
-        return (a.dataEntrada || '').localeCompare(b.dataEntrada || '');
-      }
-      if (sortBy === 'nome_asc') {
-        return (a.nome || '').localeCompare(b.nome || '');
-      }
-      if (sortBy === 'nome_desc') {
-        return (b.nome || '').localeCompare(a.nome || '');
-      }
-      return 0;
+      return matchServ && matchCid && matchMun && matchSearch;
     });
-  }, [pacientes, searchTerm, activeStatusFilter, selectedOpmFilter, sortBy]);
+  }, [pacientes, currentServico, filterCid, filterMunicipio, searchTerm]);
+
+  const handleResetFilters = () => {
+    setFilterServico('');
+    setFilterCid('');
+    setFilterMunicipio('');
+    setSearchTerm('');
+    if (onSelectServicoFilter) {
+      onSelectServicoFilter('todos');
+    }
+  };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden no-print">
+    <div className="space-y-4 no-print">
       
-      {/* Barra de Filtros e Busca */}
-      <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/50 space-y-3.5">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      {/* Barra de Filtros no padrão do prontuario.example */}
+      <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           
-          {/* Campo de Busca */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          {/* Filtro por Serviço */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">
+              Filtrar por Serviço
+            </label>
+            <select
+              value={currentServico}
+              onChange={(e) => {
+                setFilterServico(e.target.value);
+                if (onSelectServicoFilter) onSelectServicoFilter(e.target.value || 'todos');
+              }}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+            >
+              <option value="">TODOS OS SERVIÇOS</option>
+              <option value="OPM">OPM</option>
+              <option value="Reab. Intelectual">REAB. INTELECTUAL</option>
+              <option value="Reab. Fisica">REAB. FÍSICA</option>
+            </select>
+          </div>
+
+          {/* Filtro por CID */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">
+              Filtrar por CID
+            </label>
             <input
               type="text"
-              placeholder="Buscar por nome, CID, OPM, município, telefone, observações..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full text-sm pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"
+              value={filterCid}
+              onChange={(e) => setFilterCid(e.target.value)}
+              placeholder="EX: F84 OU ELA"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 hover:text-slate-600 p-1"
-              >
-                Limpar
-              </button>
-            )}
           </div>
 
-          {/* Seletores de Filtro */}
-          <div className="flex flex-wrap items-center gap-2">
-            
-            {/* Filtro OPM */}
-            <div className="relative min-w-[150px] flex-1 sm:flex-initial">
-              <select
-                value={selectedOpmFilter}
-                onChange={(e) => setSelectedOpmFilter(e.target.value)}
-                className="w-full text-xs font-medium rounded-xl border border-slate-200 bg-white py-2.5 px-3 focus:ring-2 focus:ring-blue-500 outline-none text-slate-700"
-              >
-                <option value="todos">Todas as OPMs</option>
-                {uniqueOpms.map((opm) => (
-                  <option key={opm} value={opm}>
-                    {opm}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Ordenação */}
-            <div className="relative min-w-[150px] flex-1 sm:flex-initial">
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="w-full text-xs font-medium rounded-xl border border-slate-200 bg-white py-2.5 px-3 focus:ring-2 focus:ring-blue-500 outline-none text-slate-700"
-              >
-                <option value="dataEntrada_desc">Data de Entrada (Recentes)</option>
-                <option value="dataEntrada_asc">Data de Entrada (Antigos)</option>
-                <option value="nome_asc">Nome (A - Z)</option>
-                <option value="nome_desc">Nome (Z - A)</option>
-              </select>
-            </div>
-
+          {/* Filtro por Município */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">
+              Filtrar por Município
+            </label>
+            <input
+              type="text"
+              value={filterMunicipio}
+              onChange={(e) => setFilterMunicipio(e.target.value)}
+              placeholder="EX: FUNILANDIA, SETE LAGOAS"
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold uppercase focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
           </div>
 
-        </div>
-
-        {/* Indicador de filtro ativo */}
-        {(activeStatusFilter && activeStatusFilter !== 'todos') && (
-          <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50/80 px-3 py-1.5 rounded-lg border border-blue-100">
-            <span>Filtro de categoria ativo: <strong>{activeStatusFilter}</strong></span>
+          {/* Botão Limpar Filtros */}
+          <div className="flex items-end">
             <button
-              onClick={onClearStatusFilter}
-              className="text-blue-600 hover:underline font-bold ml-auto"
+              onClick={handleResetFilters}
+              className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1.5"
             >
-              Remover filtro
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Limpar Filtros</span>
             </button>
           </div>
-        )}
+
+        </div>
+
+        {/* Busca rápida */}
+        <div className="relative pt-2 border-t border-slate-100">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-5" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Pesquisa rápida por nome, telefone, OPM solicitada ou observações..."
+            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
-      {/* Lista / Tabela */}
-      {filteredPacientes.length === 0 ? (
-        <div className="text-center py-16 px-4">
-          <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
-            <User className="w-7 h-7" />
-          </div>
-          <h3 className="text-base font-bold text-slate-800">Nenhum prontuário encontrado</h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-            {searchTerm 
-              ? `Não encontramos resultados correspondentes a "${searchTerm}". Tente outros termos.`
-              : 'Nenhum paciente cadastrado para os filtros selecionados.'}
-          </p>
-        </div>
-      ) : (
+      {/* Tabela de Pacientes fiel ao prontuario.example */}
+      <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-slate-700">
-            <thead className="text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="py-3 px-4">Paciente</th>
-                <th className="py-3 px-4">Data Entrada</th>
-                <th className="py-3 px-4">Município / ESF</th>
-                <th className="py-3 px-4">CID / Diagnóstico</th>
-                <th className="py-3 px-4">Tipo de OPM</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4 text-center">Evoluções</th>
-                <th className="py-3 px-4 text-right">Ações</th>
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="p-4">Data Ent.</th>
+                <th className="p-4">Nome do Paciente</th>
+                <th className="p-4">DN / Idade</th>
+                <th className="p-4">Município</th>
+                <th className="p-4">CID / Diagnóstico</th>
+                <th className="p-4">Serviço</th>
+                <th className="p-4">OPMs Solicitadas</th>
+                <th className="p-4 text-center">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filteredPacientes.map((paciente) => {
-                const statusConfig = STATUS_PACIENTE.find((s) => s.id === paciente.status) || STATUS_PACIENTE[0];
-                const evolucoesCount = (paciente.evolucoes || []).length;
+            <tbody className="divide-y divide-slate-100 text-xs">
+              {filteredPacientes.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="p-8 text-center text-slate-400">
+                    Nenhum paciente encontrado para os filtros selecionados.
+                  </td>
+                </tr>
+              ) : (
+                filteredPacientes.map((p) => {
+                  const servico = p.servico_especializado || 'OPM';
+                  const badgeColor = 
+                    servico === 'OPM' 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : servico === 'Reab. Intelectual' 
+                      ? 'bg-purple-100 text-purple-700' 
+                      : 'bg-emerald-100 text-emerald-700';
 
-                return (
-                  <tr 
-                    key={paciente.id} 
-                    className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                    onClick={() => onSelectPatient(paciente)}
-                  >
-                    {/* Nome e Idade */}
-                    <td className="py-3.5 px-4">
-                      <div className="font-semibold text-slate-900 group-hover:text-blue-600 transition">
-                        {paciente.nome}
-                      </div>
-                      <div className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
-                        <span>Idade: <strong>{paciente.idade || '-'}</strong></span>
-                        {paciente.telefone && (
-                          <>
-                            <span>•</span>
-                            <span className="text-slate-600">{paciente.telefone}</span>
-                          </>
-                        )}
-                      </div>
-                    </td>
+                  const opms = p.opm_list || [];
+                  const dataEntrada = p.data_entrada || p.dataEntrada || '-';
+                  const dn = p.dn || p.dataNascimento || '-';
+                  const idadeText = p.idade ? `${p.idade}a` : '-';
 
-                    {/* Data de Entrada */}
-                    <td className="py-3.5 px-4 whitespace-nowrap text-xs font-medium text-slate-700">
-                      {formatarDataBR(paciente.dataEntrada)}
-                    </td>
-
-                    {/* Município / ESF */}
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-medium text-slate-800">
-                        {paciente.municipio || '-'}
-                      </div>
-                      <div className="text-slate-500 text-[11px] truncate max-w-[180px]">
-                        {paciente.esfReferencia || 'ESF não informada'}
-                      </div>
-                    </td>
-
-                    {/* CID / Diagnóstico */}
-                    <td className="py-3.5 px-4 text-xs">
-                      <div className="font-semibold text-slate-800 truncate max-w-[200px]" title={paciente.cid}>
-                        {paciente.cid || '-'}
-                      </div>
-                    </td>
-
-                    {/* Tipo de OPM */}
-                    <td className="py-3.5 px-4 text-xs">
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-purple-50 text-purple-800 border border-purple-200">
-                        {paciente.tipoOpm || 'A definir'}
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-3.5 px-4 whitespace-nowrap">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${statusConfig.color}`}>
-                        {statusConfig.label}
-                      </span>
-                    </td>
-
-                    {/* Evoluções Count */}
-                    <td className="py-3.5 px-4 text-center whitespace-nowrap">
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-200">
-                        <Clock className="w-3 h-3" />
-                        {evolucoesCount}
-                      </span>
-                    </td>
-
-                    {/* Ações */}
-                    <td 
-                      className="py-3.5 px-4 text-right whitespace-nowrap"
-                      onClick={(e) => e.stopPropagation()} // Impede abrir o modal ao clicar nos botões individuais
+                  return (
+                    <tr 
+                      key={p.id} 
+                      className="hover:bg-slate-50/80 transition border-b border-slate-100 cursor-pointer group"
+                      onClick={() => onSelectPatient(p)}
                     >
-                      <div className="flex items-center justify-end gap-1">
-                        
-                        {/* Ver Prontuário */}
-                        <button
-                          onClick={() => onSelectPatient(paciente)}
-                          title="Ver Prontuário Completo"
-                          className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </button>
+                      {/* Data de Entrada */}
+                      <td className="p-4 font-medium text-slate-600 whitespace-nowrap">
+                        {dataEntrada}
+                      </td>
 
-                        {/* Evoluir */}
-                        <button
-                          onClick={() => onOpenEvolutionModal(paciente)}
-                          title="Registrar Nova Evolução"
-                          className="p-1.5 text-teal-600 hover:text-teal-700 hover:bg-teal-50 rounded-lg transition"
-                        >
-                          <PlusCircle className="w-4 h-4" />
-                        </button>
+                      {/* Nome do Paciente */}
+                      <td className="p-4 font-bold text-slate-900 group-hover:text-blue-600 transition">
+                        <div>{p.nome}</div>
+                        {p.telefone && (
+                          <div className="text-[11px] text-slate-400 font-normal">
+                            {p.telefone}
+                          </div>
+                        )}
+                      </td>
 
-                        {/* Imprimir */}
-                        <button
-                          onClick={() => onPrintPatient(paciente)}
-                          title="Imprimir Prontuário"
-                          className="p-1.5 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition"
-                        >
-                          <Printer className="w-4 h-4" />
-                        </button>
+                      {/* DN / Idade */}
+                      <td className="p-4 text-slate-600 whitespace-nowrap">
+                        {dn} ({idadeText})
+                      </td>
 
-                        {/* Editar */}
-                        <button
-                          onClick={() => onEditPatient(paciente)}
-                          title="Editar Cadastro"
-                          className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
+                      {/* Município */}
+                      <td className="p-4 text-slate-600">
+                        <div className="font-medium text-slate-800">{p.municipio || '-'}</div>
+                        {p.esf && (
+                          <div className="text-[10px] text-slate-400">{p.esf}</div>
+                        )}
+                      </td>
 
-                        {/* Excluir */}
-                        <button
-                          onClick={() => {
-                            if (confirm(`Tem certeza que deseja excluir o prontuário de ${paciente.nome}? Esta ação não pode ser desfeita.`)) {
-                              onDeletePatient(paciente.id);
-                            }
-                          }}
-                          title="Excluir Prontuário"
-                          className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
+                      {/* CID / Diagnóstico */}
+                      <td className="p-4 text-slate-700 font-medium max-w-[220px]">
+                        <span className="line-clamp-2" title={p.cid}>
+                          {p.cid}
+                        </span>
+                      </td>
 
-                  </tr>
-                );
-              })}
+                      {/* Serviço Especializado */}
+                      <td className="p-4 whitespace-nowrap">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeColor}`}>
+                          {servico}
+                        </span>
+                      </td>
+
+                      {/* OPMs Solicitadas */}
+                      <td className="p-4 max-w-xs">
+                        {opms.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {opms.map((o, idx) => (
+                              <span 
+                                key={idx}
+                                className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-semibold border border-blue-100"
+                              >
+                                {o.tipo}: {o.solicitada}
+                              </span>
+                            ))}
+                          </div>
+                        ) : p.tipoOpm ? (
+                          <span className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-semibold border border-blue-100">
+                            {p.tipoOpm}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">-</span>
+                        )}
+                      </td>
+
+                      {/* Ações */}
+                      <td 
+                        className="p-4 text-center whitespace-nowrap"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center justify-center space-x-1.5">
+                          {/* Ver Prontuário Completo */}
+                          <button
+                            onClick={() => onSelectPatient(p)}
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition flex items-center justify-center"
+                            title="Ver Prontuário & Evoluções"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
+
+                          {/* Adicionar Evolução */}
+                          <button
+                            onClick={() => onOpenEvolutionModal(p)}
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-600 transition flex items-center justify-center"
+                            title="Registrar Nova Evolução Clínica"
+                          >
+                            <PlusCircle className="w-4 h-4" />
+                          </button>
+
+                          {/* Imprimir */}
+                          <button
+                            onClick={() => onPrintPatient(p)}
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition flex items-center justify-center"
+                            title="Imprimir Prontuário"
+                          >
+                            <Printer className="w-4 h-4" />
+                          </button>
+
+                          {/* Editar */}
+                          <button
+                            onClick={() => onEditPatient(p)}
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition flex items-center justify-center"
+                            title="Editar Dados do Paciente"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+
+                          {/* Excluir */}
+                          <button
+                            onClick={() => {
+                              if (confirm(`Tem certeza que deseja excluir o registro de ${p.nome}?`)) {
+                                onDeletePatient(p.id);
+                              }
+                            }}
+                            className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 transition flex items-center justify-center"
+                            title="Excluir Registro"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-      )}
 
-      {/* Rodapé da Tabela */}
-      <div className="px-5 py-3 border-t border-slate-200 bg-slate-50/60 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
-        <span>
-          Mostrando <strong>{filteredPacientes.length}</strong> de <strong>{pacientes.length}</strong> pacientes cadastrados
-        </span>
-        <span className="text-[11px] text-slate-400">
-          Dica: Clique sobre a linha de qualquer paciente para abrir o prontuário completo.
-        </span>
+        {/* Rodapé da tabela */}
+        <div className="p-4 bg-slate-50/70 border-t border-slate-100 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+          <span>
+            Mostrando <strong>{filteredPacientes.length}</strong> de <strong>{pacientes.length}</strong> pacientes
+          </span>
+          <span className="text-[11px] text-slate-400">
+            Clique em qualquer linha para abrir o prontuário e histórico de evolução clínica.
+          </span>
+        </div>
       </div>
 
     </div>

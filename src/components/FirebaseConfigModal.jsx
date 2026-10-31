@@ -351,3 +351,4 @@ export default function FirebaseConfigModal({ isOpen, onClose, onConfigSaved }) 
     </div>
   );
 }
+

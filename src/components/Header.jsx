@@ -65,14 +65,14 @@ export default function Header({
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-slate-900 tracking-tight">
-                  JRRPCD <span className="text-blue-600 font-semibold text-base font-normal">| Prontuário & Evolução</span>
+                  GESTÃO JUNTA <span className="text-blue-600 font-semibold text-base font-normal">| OPM & Reabilitação</span>
                 </h1>
-                <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                  Rede de Cuidados PCD
+                <span className="hidden md:inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                  JRRPCD
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
-                Controle Clínico, Órteses, Próteses e Materiais Especiais (OPM)
+              <p className="text-xs text-slate-500 font-medium">
+                Protocolo de OPM, Reabilitação Intelectual e Física
               </p>
             </div>
           </div>
@@ -146,3 +146,4 @@ export default function Header({
     </header>
   );
 }
+

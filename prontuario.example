@@ -1,0 +1,664 @@
+<!-- ... existing code ... -->
+<!DOCTYPE html>
+<html lang="pt-BR" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Gestão de Pacientes e OPM</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        /* Custom scrollbar for tables */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col bg-slate-50 text-slate-800 antialiased">
+    <!-- Main App Container -->
+    <div id="app" class="flex h-screen w-screen overflow-hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="w-72 bg-slate-900 text-slate-100 flex flex-col shadow-xl z-20 flex-shrink-0">
+            <!-- App Logo / Title -->
+            <div class="p-6 border-b border-slate-800 flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold shadow-lg shadow-blue-500/30">
+                    <i class="fa-solid fa-hospital-user text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="font-bold text-sm tracking-wide text-white">GESTÃO JUNTA</h1>
+                    <p class="text-[10px] text-slate-400 font-medium">Controle de OPM e Reabilitação</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-lg shadow-blue-600/25 transition">
+                    <i class="fa-solid fa-chart-pie text-sm w-5"></i>
+                    <span>Dashboard / Início</span>
+                </button>
+                <button onclick="switchTab('patients')" id="nav-patients" class="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                    <i class="fa-solid fa-users text-sm w-5"></i>
+                    <span>Lista de Pacientes</span>
+                </button>
+            </nav>
+
+            <!-- Sidebar Footer info -->
+            <div class="p-4 border-t border-slate-800 text-[11px] text-slate-400 flex items-center justify-between">
+                <span>Versão 3.5 - 100% Fiel</span>
+                <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block" title="Sistema Ativo"></span>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Top Header -->
+            <header class="h-16 bg-white border-b border-slate-200 px-8 flex items-center justify-between flex-shrink-0 z-10">
+                <div class="flex items-center space-x-4">
+                    <h2 id="page-title" class="font-bold text-slate-800 text-base">Dashboard Geral</h2>
+                </div>
+                <div class="flex items-center space-x-3">
+                    <button onclick="openPatientModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center space-x-2">
+                        <i class="fa-solid fa-user-plus text-xs"></i>
+                        <span>Novo Paciente / Pedido</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Scrollable Content Container -->
+            <div class="flex-1 overflow-y-auto p-8" id="main-content-scroll">
+                <!-- Dashboard Tab View -->
+                <div id="tab-dashboard" class="space-y-6">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total de Pacientes</p>
+                                <h3 id="stat-total" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pedidos OPM</p>
+                                <h3 id="stat-opm" class="text-2xl font-bold text-blue-600 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-wheelchair"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Reabilitação Intelectual</p>
+                                <h3 id="stat-intelectual" class="text-2xl font-bold text-purple-600 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-brain"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Reabilitação Física</p>
+                                <h3 id="stat-fisica" class="text-2xl font-bold text-emerald-600 mt-1">0</h3>
+                            </div>
+                            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-person-walking"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions / Notice -->
+                    <div class="bg-gradient-to-r from-blue-600 to-indigo-700 p-6 rounded-2xl text-white shadow-xl shadow-blue-500/10 flex flex-col md:flex-row items-center justify-between">
+                        <div class="space-y-2 mb-4 md:mb-0">
+                            <h4 class="font-bold text-lg">Sistema de Protocolo Ativo</h4>
+                            <p class="text-xs text-blue-100 max-w-xl">Gerencie todos os pedidos de OPM, reabilitação física e intelectual com preenchimento automático de CIDs e histórico completo.</p>
+                        </div>
+                        <button onclick="switchTab('patients')" class="px-6 py-3 bg-white text-blue-700 font-bold text-xs rounded-xl shadow-lg hover:bg-blue-50 transition">
+                            Ver Lista Completa
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Patients List Tab View -->
+                <div id="tab-patients" class="hidden space-y-6">
+                    <!-- Filters & Search Bar -->
+                    <div class="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Filtrar por Serviço</label>
+                                <select id="filter-servico" onchange="applyFilters()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:border-blue-500">
+                                    <option value="">TODOS OS SERVIÇOS</option>
+                                    <option value="OPM">OPM</option>
+                                    <option value="Reab. Intelectual">REAB. INTELECTUAL</option>
+                                    <option value="Reab. Fisica">REAB. FÍSICA</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Filtrar por CID</label>
+                                <input type="text" id="filter-cid" oninput="applyFilters()" placeholder="EX: F84 OU ELA" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium uppercase focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-semibold text-slate-400 uppercase mb-1">Filtrar por Município</label>
+                                <input type="text" id="filter-municipio" oninput="applyFilters()" placeholder="EX: FUNILANDIA" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium uppercase focus:outline-none focus:border-blue-500">
+                            </div>
+                            <div class="flex items-end">
+                                <button onclick="resetFilters()" class="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl transition">
+                                    Limpar Filtros
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Patients Table -->
+                    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse">
+                                <thead>
+                                    <tr class="bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                        <th class="p-4">Data Ent.</th>
+                                        <th class="p-4">Nome do Paciente</th>
+                                        <th class="p-4">DN / Idade</th>
+                                        <th class="p-4">Município</th>
+                                        <th class="p-4">CID / Diagnóstico</th>
+                                        <th class="p-4">Serviço</th>
+                                        <th class="p-4">OPMs Solicitadas</th>
+                                        <th class="p-4 text-center">Ações</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="patients-table-body" class="divide-y divide-slate-100 text-xs">
+                                    <!-- Dynamic rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Patient Modal -->
+    <div id="patient-modal" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl max-w-4xl w-full p-8 shadow-2xl border border-slate-100 my-8">
+            <div class="flex items-center justify-between pb-6 border-b border-slate-100">
+                <h3 id="modal-title" class="font-bold text-base text-slate-800">Novo Paciente / Pedido</h3>
+                <button onclick="closePatientModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <form id="patient-form" onsubmit="savePatient(event)" class="space-y-6 pt-6">
+                <input type="hidden" id="patient-id">
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Data de Entrada*</label>
+                        <input type="text" id="data_entrada" placeholder="DD/MM/AAAA" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Nome do Paciente*</label>
+                        <input type="text" id="nome" placeholder="NOME COMPLETO" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500" required>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Data de Nascimento (DN)*</label>
+                        <input type="text" id="dn" placeholder="DD/MM/AAAA" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Idade</label>
+                        <input type="number" id="idade" placeholder="EX: 45" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Telefone</label>
+                        <input type="text" id="telefone" placeholder="(00) 00000-0000" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Município*</label>
+                        <input type="text" id="municipio" placeholder="EX: SETE LAGOAS" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">ESF de Referência</label>
+                        <input type="text" id="esf" placeholder="EX: ESF BELO VALE II" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="relative">
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">CID / Diagnóstico*</label>
+                        <input type="text" id="cid" oninput="handleCidInput(this.value)" placeholder="EX: F84 - TRANSTORNO DO ESPECTRO AUTISTA" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500" required autocomplete="off">
+                        <div id="cid-suggestions" class="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg hidden z-30 max-h-48 overflow-y-auto"></div>
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Serviço Especializado*</label>
+                        <select id="servico_especializado" onchange="window.handleServicoChange()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500" required>
+                            <option value="">SELECIONE O SERVIÇO</option>
+                            <option value="OPM">OPM</option>
+                            <option value="Reab. Intelectual">REABILITAÇÃO INTELECTUAL</option>
+                            <option value="Reab. Fisica">REABILITAÇÃO FÍSICA</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Dynamic OPM Section -->
+                <div id="dynamic-service-section" class="space-y-3"></div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Remetente</label>
+                        <input type="text" id="remetente" placeholder="EX: APS / MUNICIPIO" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Avaliação da Junta</label>
+                        <input type="text" id="avaliacao_junta" placeholder="EX: CER II" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Data de Avaliação/Envio</label>
+                        <input type="text" id="data_avaliacao" placeholder="DD/MM/AAAA" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Presença</label>
+                        <input type="text" id="presenca" placeholder="EX: COMPARECEU" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Status</label>
+                        <input type="text" id="status" placeholder="EX: INSERIDO / ARQUIVADO" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Data da Alta</label>
+                        <input type="text" id="data_alta" placeholder="DD/MM/AAAA" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-1">Prontuário / Observações</label>
+                    <textarea id="observacoes" rows="3" placeholder="OBSERVAÇÕES ADICIONAIS..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:outline-none focus:border-blue-500"></textarea>
+                </div>
+
+                <div class="pt-4 border-t border-slate-100 flex justify-end space-x-3">
+                    <button type="button" onclick="closePatientModal()" class="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition">Cancelar</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-semibold text-xs hover:bg-blue-700 shadow-lg shadow-blue-500/20 transition flex items-center space-x-2">
+                        <i class="fa-solid fa-floppy-disk"></i>
+                        <span>Salvar Paciente/Pedido</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script Application Logic -->
+    <script>
+        // Common CIDs database for autocomplete
+        const cidDatabase = [
+            "F84 - TRANSTORNO DO ESPECTRO AUTISTA (TEA)",
+            "F84.0 - AUTISMO INFANTIL",
+            "F84.5 - SINDROME DE ASPERGER",
+            "F90 - TRANSTORNO DO DÉFICIT DE ATENÇÃO E HIPERATIVIDADE (TDAH)",
+            "G12.2 - ESCLEROSE LATERAL AMIOTRÓFICA (ELA)",
+            "G20 - DOENÇA DE PARKINSON",
+            "I69.4 - SEQUELA DE AVC",
+            "Q90 - SÍNDROME DE DOWN",
+            "Q05 - MIELOMENINGOCELE",
+            "S06 - TRAUMATISMO CRANIOENCEFÁLICO (TCE)",
+            "G80 - PARALISIA CEREBRAL",
+            "C32 - NEOPLASIA MALIGNA DA LARINGE",
+            "C71 - NEOPLASIA MALIGNA DO ENCÉFALO"
+        ];
+
+        let patients = [
+            {
+                id: '1',
+                data_entrada: '02/01/2026',
+                nome: 'LUCIO CANDIDO DE OLIVEIRA',
+                dn: '11/09/1956',
+                idade: 69,
+                telefone: '985458648',
+                municipio: 'FUNILANDIA',
+                esf: '',
+                cid: 'ELA',
+                remetente: 'MUNICIPIO',
+                servico_especializado: 'OPM',
+                opm_list: [
+                    { tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', solicitada: 'MULETA CANADENSE' },
+                    { tipo: 'CADEIRA DE RODAS', solicitada: 'CADEIRA MOTORIZADA' }
+                ],
+                avaliacao_junta: 'CER II',
+                data_avaliacao: '04/02/2026',
+                presenca: 'COMPARECEU',
+                status: '',
+                data_alta: '',
+                observacoes: 'CADEIRA DE RODAS MOTORIZADA- RECEBIMENTO EM 19/05/2026;'
+            },
+            {
+                id: '2',
+                data_entrada: '05/01/2026',
+                nome: 'TIAGO VIDAL ALVES SOARES',
+                dn: '26/04/2018',
+                idade: 8,
+                telefone: '983113240',
+                municipio: 'SETE LAGOAS',
+                esf: 'ESF MORRO DO CLARO',
+                cid: 'TDAH, TEA',
+                remetente: 'APS',
+                servico_especializado: 'Reab. Intelectual',
+                opm_list: [],
+                avaliacao_junta: 'CENTRO DE AUTISMO',
+                data_avaliacao: '08/05/2026',
+                presenca: '',
+                status: '',
+                data_alta: '',
+                observacoes: ''
+            }
+        ];
+
+        window.switchTab = function(tabId) {
+            document.getElementById('tab-dashboard').classList.add('hidden');
+            document.getElementById('tab-patients').classList.add('hidden');
+            document.getElementById('nav-dashboard').className = 'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition';
+            document.getElementById('nav-patients').className = 'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white transition';
+
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            document.getElementById('nav-' + tabId).className = 'w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-lg shadow-blue-600/25 transition';
+
+            const titleEl = document.getElementById('page-title');
+            if (tabId === 'dashboard') {
+                titleEl.textContent = 'Dashboard Geral';
+                updateStats();
+            } else if (tabId === 'patients') {
+                titleEl.textContent = 'Lista de Pacientes e Protocolos';
+                renderPatientsTable();
+            }
+        };
+
+        window.updateStats = function() {
+            document.getElementById('stat-total').textContent = patients.length;
+            document.getElementById('stat-opm').textContent = patients.filter(p => p.servico_especializado === 'OPM').length;
+            document.getElementById('stat-intelectual').textContent = patients.filter(p => p.servico_especializado === 'Reab. Intelectual').length;
+            document.getElementById('stat-fisica').textContent = patients.filter(p => p.servico_especializado === 'Reab. Fisica').length;
+        };
+
+        window.renderPatientsTable = function(data = patients) {
+            const tbody = document.getElementById('patients-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-slate-400">Nenhum paciente encontrado.</td></tr>`;
+                return;
+            }
+
+            data.forEach(p => {
+                let opmHtml = '-';
+                if (p.opm_list && p.opm_list.length > 0) {
+                    opmHtml = p.opm_list.map(o => `<span class="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-semibold mr-1 mb-1">${o.tipo}: ${o.solicitada}</span>`).join('');
+                }
+
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-slate-50/80 transition border-b border-slate-100';
+                tr.innerHTML = `
+                    <td class="p-4 font-medium text-slate-600">${p.data_entrada || '-'}</td>
+                    <td class="p-4 font-bold text-slate-900">${p.nome}</td>
+                    <td class="p-4 text-slate-600">${p.dn} (${p.idade || '-'}a)</td>
+                    <td class="p-4 text-slate-600">${p.municipio}</td>
+                    <td class="p-4 text-slate-700 font-medium">${p.cid}</td>
+                    <td class="p-4"><span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${p.servico_especializado === 'OPM' ? 'bg-blue-100 text-blue-700' : p.servico_especializado === 'Reab. Intelectual' ? 'bg-purple-100 text-purple-700' : 'bg-emerald-100 text-emerald-700'}">${p.servico_especializado}</span></td>
+                    <td class="p-4 max-w-xs">${opmHtml}</td>
+                    <td class="p-4 text-center">
+                        <div class="flex items-center justify-center space-x-2">
+                            <button onclick="openPatientModal('${p.id}')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition flex items-center justify-center" title="Editar"><i class="fa-solid fa-pen text-xs"></i></button>
+                            <button onclick="deletePatient('${p.id}')" class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 transition flex items-center justify-center" title="Excluir"><i class="fa-solid fa-trash text-xs"></i></button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        };
+
+        window.applyFilters = function() {
+            const serv = document.getElementById('filter-servico').value;
+            const cid = document.getElementById('filter-cid').value.toUpperCase();
+            const mun = document.getElementById('filter-municipio').value.toUpperCase();
+
+            const filtered = patients.filter(p => {
+                const matchServ = !serv || p.servico_especializado === serv;
+                const matchCid = !cid || (p.cid && p.cid.toUpperCase().includes(cid));
+                const matchMun = !mun || (p.municipio && p.municipio.toUpperCase().includes(mun));
+                return matchServ && matchCid && matchMun;
+            });
+
+            renderPatientsTable(filtered);
+        };
+
+        window.resetFilters = function() {
+            document.getElementById('filter-servico').value = '';
+            document.getElementById('filter-cid').value = '';
+            document.getElementById('filter-municipio').value = '';
+            renderPatientsTable(patients);
+        };
+
+        window.closePatientModal = function() {
+            const modal = document.getElementById('patient-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.openPatientModal = function(id = null) {
+            const modal = document.getElementById('patient-modal');
+            const form = document.getElementById('patient-form');
+            const titleEl = document.getElementById('modal-title');
+            if (!modal || !form) return;
+            
+            form.reset();
+            document.getElementById('patient-id').value = '';
+            document.getElementById('dynamic-service-section').innerHTML = '';
+            
+            if (id) {
+                titleEl.textContent = 'Editar Paciente / Pedido';
+                const patient = patients.find(p => p.id === id);
+                if (patient) {
+                    document.getElementById('patient-id').value = patient.id;
+                    document.getElementById('data_entrada').value = patient.data_entrada || '';
+                    document.getElementById('nome').value = patient.nome || '';
+                    document.getElementById('dn').value = patient.dn || '';
+                    document.getElementById('idade').value = patient.idade || '';
+                    document.getElementById('telefone').value = patient.telefone || '';
+                    document.getElementById('municipio').value = patient.municipio || '';
+                    document.getElementById('esf').value = patient.esf || '';
+                    document.getElementById('cid').value = patient.cid || '';
+                    document.getElementById('remetente').value = patient.remetente || '';
+                    document.getElementById('servico_especializado').value = patient.servico_especializado || '';
+                    window.handleServicoChange();
+                    
+                    if (patient.servico_especializado === 'OPM' && patient.opm_list && patient.opm_list.length > 0) {
+                        const container = document.getElementById('opm-inputs-container');
+                        if (container) {
+                            container.innerHTML = '';
+                            patient.opm_list.forEach(item => {
+                                window.addOpmField(item.tipo, item.solicitada);
+                            });
+                        }
+                    }
+                    
+                    document.getElementById('avaliacao_junta').value = patient.avaliacao_junta || '';
+                    document.getElementById('data_avaliacao').value = patient.data_avaliacao || '';
+                    document.getElementById('presenca').value = patient.presenca || '';
+                    document.getElementById('status').value = patient.status || '';
+                    document.getElementById('data_alta').value = patient.data_alta || '';
+                    document.getElementById('observacoes').value = patient.observacoes || '';
+                }
+            } else {
+                titleEl.textContent = 'Novo Paciente / Pedido';
+                const today = new Date().toISOString().split('T')[0];
+                const parts = today.split('-');
+                document.getElementById('data_entrada').value = `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            
+            modal.classList.remove('hidden');
+        };
+
+        window.handleServicoChange = function() {
+            const serv = document.getElementById('servico_especializado').value;
+            const container = document.getElementById('dynamic-service-section');
+            if (!container) return;
+            if (serv === 'OPM') {
+                container.innerHTML = `
+                    <div class="space-y-3 bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
+                        <div class="flex items-center justify-between">
+                            <label class="block text-xs font-semibold text-blue-900 uppercase">Tipos e OPMs Solicitadas (Múltiplos)*</label>
+                            <button type="button" onclick="window.addOpmField()" class="text-xs font-semibold text-blue-700 hover:text-blue-900 flex items-center space-x-1">
+                                <i class="fa-solid fa-plus-circle"></i>
+                                <span>Adicionar Outro OPM</span>
+                            </button>
+                        </div>
+                        <div id="opm-inputs-container" class="space-y-3"></div>
+                    </div>
+                `;
+                const opmContainer = document.getElementById('opm-inputs-container');
+                if (opmContainer && opmContainer.children.length === 0) {
+                    window.addOpmField();
+                }
+            } else {
+                container.innerHTML = '';
+            }
+        };
+
+        window.addOpmField = function(tipoVal = '', solVal = '') {
+            const container = document.getElementById('opm-inputs-container');
+            if (!container) return;
+            const div = document.createElement('div');
+            div.className = 'grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-white p-3 rounded-xl border border-blue-200 opm-row-item';
+            
+            div.innerHTML = `
+                <div class="md:col-span-5">
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-0.5">Tipo de OPM</label>
+                    <select class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs uppercase focus:outline-none opm-tipo-input" required>
+                        <option value="">SELECIONE O TIPO</option>
+                        <option value="MEIO AUXILIAR DE LOCOMOÇÃO" ${tipoVal === 'MEIO AUXILIAR DE LOCOMOÇÃO' ? 'selected' : ''}>MEIO AUXILIAR DE LOCOMOÇÃO</option>
+                        <option value="CADEIRA DE RODAS" ${tipoVal === 'CADEIRA DE RODAS' ? 'selected' : ''}>CADEIRA DE RODAS</option>
+                        <option value="ÓRTESE" ${tipoVal === 'ÓRTESE' ? 'selected' : ''}>ÓRTESE</option>
+                        <option value="PRÓTESE" ${tipoVal === 'PRÓTESE' ? 'selected' : ''}>PRÓTESE</option>
+                        <option value="CALÇADO ORTOPÉDICO" ${tipoVal === 'CALÇADO ORTOPÉDICO' ? 'selected' : ''}>CALÇADO ORTOPÉDICO</option>
+                    </select>
+                </div>
+                <div class="md:col-span-6">
+                    <label class="block text-[10px] font-semibold text-slate-500 uppercase mb-0.5">OPM Solicitada</label>
+                    <input type="text" value="${solVal}" placeholder="EX: CADEIRA MOTORIZADA" class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs uppercase focus:outline-none opm-sol-input" required>
+                </div>
+                <div class="md:col-span-1 flex justify-end pt-4">
+                    <button type="button" onclick="this.closest('.opm-row-item').remove()" class="text-rose-500 hover:text-rose-700 p-1.5" title="Remover OPM"><i class="fa-solid fa-trash"></i></button>
+                </div>
+            `;
+            container.appendChild(div);
+        };
+
+        window.handleCidInput = function(val) {
+            const sugBox = document.getElementById('cid-suggestions');
+            if (!val || val.trim().length === 0) {
+                sugBox.classList.add('hidden');
+                return;
+            }
+            const query = val.toUpperCase();
+            const matches = cidDatabase.filter(c => c.toUpperCase().includes(query));
+            if (matches.length === 0) {
+                sugBox.classList.add('hidden');
+                return;
+            }
+            sugBox.innerHTML = matches.map(m => `<div onclick="selectCid('${m}')" class="px-4 py-2 text-xs hover:bg-slate-100 cursor-pointer font-medium uppercase">${m}</div>`).join('');
+            sugBox.classList.remove('hidden');
+        };
+
+        window.selectCid = function(val) {
+            document.getElementById('cid').value = val;
+            document.getElementById('cid-suggestions').classList.add('hidden');
+        };
+
+        window.savePatient = function(e) {
+            e.preventDefault();
+            const id = document.getElementById('patient-id').value;
+            const serv = document.getElementById('servico_especializado').value;
+            
+            let opmList = [];
+            if (serv === 'OPM') {
+                const rows = document.querySelectorAll('.opm-row-item');
+                rows.forEach(r => {
+                    const tipo = r.querySelector('.opm-tipo-input').value;
+                    const solicitada = r.querySelector('.opm-sol-input').value;
+                    if (tipo && solicitada) {
+                        opmList.push({ tipo, solicitada });
+                    }
+                });
+            }
+
+            const patientData = {
+                id: id || Date.now().toString(),
+                data_entrada: document.getElementById('data_entrada').value,
+                nome: document.getElementById('nome').value.toUpperCase(),
+                dn: document.getElementById('dn').value,
+                idade: parseInt(document.getElementById('idade').value) || 0,
+                telefone: document.getElementById('telefone').value,
+                municipio: document.getElementById('municipio').value.toUpperCase(),
+                esf: document.getElementById('esf').value.toUpperCase(),
+                cid: document.getElementById('cid').value.toUpperCase(),
+                remetente: document.getElementById('remetente').value.toUpperCase(),
+                servico_especializado: serv,
+                opm_list: opmList,
+                avaliacao_junta: document.getElementById('avaliacao_junta').value.toUpperCase(),
+                data_avaliacao: document.getElementById('data_avaliacao').value,
+                presenca: document.getElementById('presenca').value.toUpperCase(),
+                status: document.getElementById('status').value.toUpperCase(),
+                data_alta: document.getElementById('data_alta').value,
+                observacoes: document.getElementById('observacoes').value.toUpperCase()
+            };
+
+            if (id) {
+                const idx = patients.findIndex(p => p.id === id);
+                if (idx !== -1) patients[idx] = patientData;
+            } else {
+                patients.unshift(patientData);
+            }
+
+            closePatientModal();
+            updateStats();
+            renderPatientsTable();
+        };
+
+        window.deletePatient = function(id) {
+            if (confirm('Tem certeza que deseja excluir este registro?')) {
+                patients = patients.filter(p => p.id !== id);
+                updateStats();
+                renderPatientsTable();
+            }
+        };
+
+        // Initialize app on load
+        window.onload = function() {
+            updateStats();
+        };
+    </script>
+</body>
+</html>

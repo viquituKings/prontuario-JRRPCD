@@ -1,60 +1,95 @@
-// Constantes e dados de auxílio para o Prontuário JRRPCD
+// Definições de dados baseadas no prontuario.example para a GESTÃO JUNTA / JRRPCD
+
+export const SERVICOS_ESPECIALIZADOS = [
+  'OPM',
+  'Reab. Intelectual',
+  'Reab. Fisica'
+];
+
+export const TIPOS_OPM = [
+  'MEIO AUXILIAR DE LOCOMOÇÃO',
+  'CADEIRA DE RODAS',
+  'ÓRTESE',
+  'PRÓTESE',
+  'CALÇADO ORTOPÉDICO'
+];
 
 export const OPMS_SUGERIDAS = [
-  'Cadeira de Rodas Padrão Adulto',
-  'Cadeira de Rodas Padrão Infantil',
-  'Cadeira de Rodas para Obeso',
-  'Cadeira de Rodas Motorizada',
-  'Cadeira de Banho com Encosto Reclinável',
-  'Cadeira de Banho com Assento Sanitário',
-  'Andador Fixo com 4 Pontas',
-  'Andador Articulado / com Rodas',
-  'Bengala 4 Pontas',
-  'Muleta Canadense (par)',
-  'Muleta Axilar (par)',
-  'Órtese Tornozelo-Pé (AFO / Goteira)',
-  'Órtese Joelho-Tornozelo-Pé (KAFO)',
-  'Órtese Suropodálica Flexível',
-  'Tutor Longo com Articulação',
-  'Prótese Transtibial',
-  'Prótese Transfemoral',
-  'Prótese de Desarticulação de Quadril',
-  'Prótese Transradial',
-  'Prótese Transumeral',
-  'Calçado Ortopédico Sob Medida',
-  'Palmilha Sob Medida',
-  'Colete Putti / Boston / Milwaukee',
-  'Almofada de Gel / Ar para Cadeira de Rodas'
+  'CADEIRA DE RODAS PADRÃO ADULTO',
+  'CADEIRA DE RODAS PADRÃO INFANTIL',
+  'CADEIRA MOTORIZADA',
+  'CADEIRA DE BANHO COM ENCOSTO RECLINÁVEL',
+  'CADEIRA DE BANHO COM ASSENTO SANITÁRIO',
+  'MULETA CANADENSE',
+  'MULETA AXILAR',
+  'ANDADOR FIXO 4 PONTAS',
+  'ANDADOR ARTICULADO / COM RODAS',
+  'BENGALA 4 PONTAS',
+  'ÓRTESE TORNOZELO-PÉ (AFO / GOTEIRA)',
+  'ÓRTESE JOELHO-TORNOZELO-PÉ (KAFO)',
+  'ÓRTESE SUROPODÁLICA FLEXÍVEL',
+  'PRÓTESE TRANSTIBIAL',
+  'PRÓTESE TRANSFEMORAL',
+  'CALÇADO ORTOPÉDICO SOB MEDIDA',
+  'PALMILHA SOB MEDIDA',
+  'ALMOFADA DE GEL / AR'
 ];
 
-export const CIDS_COMUNS = [
-  { codigo: 'G80', descricao: 'Paralisia cerebral' },
-  { codigo: 'I69', descricao: 'Sequelas de doenças cerebrovasculares (AVC)' },
-  { codigo: 'G82', descricao: 'Paraplegia e tetraplegia' },
-  { codigo: 'G12.2', descricao: 'Doença do neurônio motor (ELA)' },
-  { codigo: 'G35', descricao: 'Esclerose múltipla' },
-  { codigo: 'M62.4', descricao: 'Contratura muscular' },
-  { codigo: 'M79.7', descricao: 'Fibromialgia' },
-  { codigo: 'Q05', descricao: 'Espinha bífida (Mielomeningocele)' },
-  { codigo: 'Q66', descricao: 'Deformidades congênitas dos pés' },
-  { codigo: 'Q68.0', descricao: 'Deformidades congênitas do joelho' },
-  { codigo: 'S88', descricao: 'Amputação traumática da perna' },
-  { codigo: 'S78', descricao: 'Amputação traumática do quadril e da coxa' },
-  { codigo: 'T92', descricao: 'Sequelas de traumatismo do membro superior' },
-  { codigo: 'T93', descricao: 'Sequelas de traumatismo do membro inferior' },
-  { codigo: 'E10.5 / E14.5', descricao: 'Diabetes com complicações circulatórias / Pé diabético' },
-  { codigo: 'M16', descricao: 'Coxartrose (artrose do quadril)' },
-  { codigo: 'M17', descricao: 'Gonartrose (artrose do joelho)' }
+export const CIDS_DATABASE = [
+  'F84 - TRANSTORNO DO ESPECTRO AUTISTA (TEA)',
+  'F84.0 - AUTISMO INFANTIL',
+  'F84.5 - SINDROME DE ASPERGER',
+  'F90 - TRANSTORNO DO DÉFICIT DE ATENÇÃO E HIPERATIVIDADE (TDAH)',
+  'G12.2 - ESCLEROSE LATERAL AMIOTRÓFICA (ELA)',
+  'G20 - DOENÇA DE PARKINSON',
+  'I69.4 - SEQUELA DE AVC',
+  'Q90 - SÍNDROME DE DOWN',
+  'Q05 - MIELOMENINGOCELE',
+  'S06 - TRAUMATISMO CRANIOENCEFÁLICO (TCE)',
+  'G80 - PARALISIA CEREBRAL',
+  'G82 - PARAPLEGIA E TETRAPLEGIA',
+  'C32 - NEOPLASIA MALIGNA DA LARINGE',
+  'C71 - NEOPLASIA MALIGNA DO ENCÉFALO',
+  'S88 - AMPUTAÇÃO TRAUMÁTICA DA PERNA',
+  'S78 - AMPUTAÇÃO TRAUMÁTICA DA COXA',
+  'M62.4 - CONTRATURA MUSCULAR',
+  'E10.5 - DIABETES MELLITUS COM COMPLICAÇÕES CIRCULATÓRIAS'
 ];
 
-export const STATUS_PACIENTE = [
-  { id: 'triagem', label: 'Triagem / Entrada', color: 'bg-amber-100 text-amber-800 border-amber-200' },
-  { id: 'em_avaliacao', label: 'Em Avaliação', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-  { id: 'aguardando_opm', label: 'Aguardando Fabricação/OPM', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-  { id: 'prova_ajuste', label: 'Prova e Ajuste', color: 'bg-indigo-100 text-indigo-800 border-indigo-200' },
-  { id: 'concluido', label: 'OPM Concedida / Concluído', color: 'bg-emerald-100 text-emerald-800 border-emerald-200' },
-  { id: 'acompanhamento', label: 'Em Acompanhamento', color: 'bg-cyan-100 text-cyan-800 border-cyan-200' },
-  { id: 'arquivado', label: 'Arquivado', color: 'bg-slate-100 text-slate-700 border-slate-200' }
+export const STATUS_SUGESTOES = [
+  'INSERIDO',
+  'EM ANÁLISE',
+  'AGUARDANDO OPM',
+  'PROVA E AJUSTE',
+  'CONCEDIDO / ENTREGUE',
+  'EM ATENDIMENTO',
+  'ALTA',
+  'ARQUIVADO'
+];
+
+export const PRESENCA_SUGESTOES = [
+  'COMPARECEU',
+  'FALTOU',
+  'JUSTIFICOU',
+  'AGENDADO',
+  'REAGENDADO'
+];
+
+export const REMETENTE_SUGESTOES = [
+  'APS',
+  'MUNICIPIO',
+  'APS / MUNICIPIO',
+  'HOSPITAL',
+  'CER',
+  'CENTRO ESPECIALIZADO'
+];
+
+export const AVALIACAO_JUNTA_SUGESTOES = [
+  'CER II',
+  'CER IV',
+  'CENTRO DE AUTISMO',
+  'JUNTA REGIONAL PCD',
+  'REABILITAÇÃO FÍSICA'
 ];
 
 export const TIPOS_ATENDIMENTO = [
@@ -72,47 +107,61 @@ export const TIPOS_ATENDIMENTO = [
 ];
 
 /**
- * Calcula a idade a partir da data de nascimento no formato YYYY-MM-DD
+ * Retorna a data atual no formato DD/MM/AAAA
  */
-export function calcularIdade(dataNascimento) {
-  if (!dataNascimento) return '';
-  const nascimento = new Date(dataNascimento + 'T00:00:00');
+export function getHojeBR() {
   const hoje = new Date();
-
-  if (isNaN(nascimento.getTime())) return '';
-
-  let anos = hoje.getFullYear() - nascimento.getFullYear();
-  let meses = hoje.getMonth() - nascimento.getMonth();
-  let dias = hoje.getDate() - nascimento.getDate();
-
-  if (dias < 0) {
-    meses--;
-  }
-
-  if (meses < 0) {
-    anos--;
-    meses += 12;
-  }
-
-  if (anos < 0) return '0 anos';
-  if (anos === 0) {
-    if (meses === 0) {
-      return `${Math.max(0, dias)} dias`;
-    }
-    return `${meses} ${meses === 1 ? 'mês' : 'meses'}`;
-  }
-
-  return `${anos} ${anos === 1 ? 'ano' : 'anos'}${meses > 0 ? ` e ${meses} m` : ''}`;
+  const dia = String(hoje.getDate()).padStart(2, '0');
+  const mes = String(hoje.getMonth() + 1).padStart(2, '0');
+  const ano = hoje.getFullYear();
+  return `${dia}/${mes}/${ano}`;
 }
 
 /**
- * Formata telefone com máscara brasileira (XX) XXXXX-XXXX ou (XX) XXXX-XXXX
+ * Calcula a idade com precisão a partir de data em formato DD/MM/AAAA ou YYYY-MM-DD
+ */
+export function calcularIdade(dataNasc) {
+  if (!dataNasc) return '';
+  let dia, mes, ano;
+
+  if (typeof dataNasc === 'string' && dataNasc.includes('/')) {
+    const parts = dataNasc.split('/');
+    if (parts.length >= 3) {
+      dia = parseInt(parts[0], 10);
+      mes = parseInt(parts[1], 10) - 1;
+      ano = parseInt(parts[2], 10);
+    }
+  } else if (typeof dataNasc === 'string' && dataNasc.includes('-')) {
+    const parts = dataNasc.split('-');
+    if (parts.length >= 3) {
+      ano = parseInt(parts[0], 10);
+      mes = parseInt(parts[1], 10) - 1;
+      dia = parseInt(parts[2], 10);
+    }
+  }
+
+  if (!ano || isNaN(ano) || ano < 1900 || isNaN(dia) || isNaN(mes)) return '';
+
+  const nasc = new Date(ano, mes, dia);
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  const m = hoje.getMonth() - nasc.getMonth();
+
+  if (m < 0 || (m === 0 && hoje.getDate() < nasc.getDate())) {
+    idade--;
+  }
+
+  return idade >= 0 ? idade : '';
+}
+
+/**
+ * Formata telefone brasileiro
  */
 export function formatarTelefone(valor) {
   if (!valor) return '';
   const digits = valor.replace(/\D/g, '').slice(0, 11);
   if (digits.length <= 2) {
-    return `(${digits}`;
+    return digits;
   }
   if (digits.length <= 6) {
     return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
@@ -124,21 +173,18 @@ export function formatarTelefone(valor) {
 }
 
 /**
- * Formata data ISO (YYYY-MM-DD) para PT-BR (DD/MM/AAAA)
+ * Formata data de entrada/nascimento no formato DD/MM/AAAA
  */
-export function formatarDataBR(dataIso) {
-  if (!dataIso) return '-';
-  try {
-    const [ano, mes, dia] = dataIso.split('T')[0].split('-');
-    if (!ano || !mes || !dia) return dataIso;
-    return `${dia}/${mes}/${ano}`;
-  } catch {
-    return dataIso;
-  }
+export function formatarMascaraData(valor) {
+  if (!valor) return '';
+  const digits = valor.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4, 8)}`;
 }
 
 /**
- * Formata data e hora para exibição completa
+ * Formata data ISO para exibição amigável
  */
 export function formatarDataHoraBR(dataIso) {
   if (!dataIso) return '-';
@@ -157,89 +203,105 @@ export function formatarDataHoraBR(dataIso) {
   }
 }
 
-// Dados de demonstração para carregar se não houver dados no Firestore/Local
+// Pacientes iniciais baseados fielmente no prontuario.example
 export const PACIENTES_DEMO = [
   {
-    id: 'demo-1',
-    dataEntrada: '2026-10-15',
-    nome: 'Maria Francisca da Silva',
-    dataNascimento: '1968-04-12',
-    idade: '58 anos e 6 m',
-    telefone: '(11) 98452-1144',
-    municipio: 'São Paulo',
-    esfReferencia: 'ESF Jardim das Flores',
-    cid: 'I69.3 - Sequelas de infarto cerebral (Hemiparesia E)',
-    tipoOpm: 'Órtese Tornozelo-Pé (AFO / Goteira)',
-    status: 'aguardando_opm',
-    prontuarioObservacoes: 'Paciente encaminhada pela ESF Jardim das Flores após AVC isquêmico com hemiparesia à esquerda e pé equinovaro. Marcha com claudicação e déficit de dorsiflexão.',
+    id: '1',
+    data_entrada: '02/01/2026',
+    nome: 'LUCIO CANDIDO DE OLIVEIRA',
+    dn: '11/09/1956',
+    idade: 69,
+    telefone: '(31) 98545-8648',
+    municipio: 'FUNILANDIA',
+    esf: '',
+    cid: 'G12.2 - ESCLEROSE LATERAL AMIOTRÓFICA (ELA)',
+    remetente: 'MUNICIPIO',
+    servico_especializado: 'OPM',
+    opm_list: [
+      { tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', solicitada: 'MULETA CANADENSE' },
+      { tipo: 'CADEIRA DE RODAS', solicitada: 'CADEIRA MOTORIZADA' }
+    ],
+    avaliacao_junta: 'CER II',
+    data_avaliacao: '04/02/2026',
+    presenca: 'COMPARECEU',
+    status: 'AGUARDANDO OPM',
+    data_alta: '',
+    observacoes: 'CADEIRA DE RODAS MOTORIZADA - RECEBIMENTO EM 19/05/2026;',
     evolucoes: [
       {
         id: 'evo-1',
-        dataHora: '2026-10-15T09:30:00',
-        profissional: 'Dra. Camila Rocha (Fisioterapeuta - CREFITO 14829)',
-        tipoAtendimento: 'Acolhimento / Triagem Inicial',
-        descricao: 'Realizada triagem inicial da paciente acompanhada pela filha. Verificado histórico de AVE há 8 meses. Apresenta hipertonia elástica grau 2 em tríceps sural à esquerda.',
-        conduta: 'Solicitada avaliação médica para prescrição de AFO rígida e inclusão no programa de cinesioterapia motora.'
-      },
-      {
-        id: 'evo-2',
-        dataHora: '2026-10-22T14:15:00',
+        dataHora: '2026-02-04T10:00:00',
         profissional: 'Dr. Roberto Mendes (Médico Fisiatra - CRM 94821)',
         tipoAtendimento: 'Avaliação Médica Fisiátrica / Ortopédica',
-        descricao: 'Avaliação clínica confirmando indicação de Órtese Tornozelo-Pé tipo goteira posterior em polipropileno a 90 graus para membro inferior esquerdo.',
-        conduta: 'Encaminhada ao setor de órteses para molde gessado. Retorno agendado para prova.'
+        descricao: 'Paciente avaliado na Junta Regional CER II. Confirmada indicação clínica para meio auxiliar e cadeira motorizada.',
+        conduta: 'Encaminhado ao setor de tecnologia assistiva para medição e laudo definitivo de concessão.'
       }
     ],
-    createdAt: '2026-10-15T09:30:00'
+    createdAt: '2026-01-02T09:00:00'
   },
   {
-    id: 'demo-2',
-    dataEntrada: '2026-10-20',
-    nome: 'João Lucas Souza Pereira',
-    dataNascimento: '2019-08-25',
-    idade: '7 anos e 2 m',
-    telefone: '(11) 97123-9988',
-    municipio: 'Guarulhos',
-    esfReferencia: 'UBS Vila Esperança',
-    cid: 'G80.0 - Paralisia cerebral espástica quadriparética',
-    tipoOpm: 'Cadeira de Rodas Padrão Infantil',
-    status: 'prova_ajuste',
-    prontuarioObservacoes: 'Criança com diagnóstico de PC quadriparética, sem controle total de tronco, necessita de cadeira de rodas adaptada com apoio de cabeça e cinto torácico.',
+    id: '2',
+    data_entrada: '05/01/2026',
+    nome: 'TIAGO VIDAL ALVES SOARES',
+    dn: '26/04/2018',
+    idade: 8,
+    telefone: '(31) 98311-3240',
+    municipio: 'SETE LAGOAS',
+    esf: 'ESF MORRO DO CLARO',
+    cid: 'F84 - TRANSTORNO DO ESPECTRO AUTISTA (TEA), TDAH',
+    remetente: 'APS',
+    servico_especializado: 'Reab. Intelectual',
+    opm_list: [],
+    avaliacao_junta: 'CENTRO DE AUTISMO',
+    data_avaliacao: '08/05/2026',
+    presenca: 'COMPARECEU',
+    status: 'EM ATENDIMENTO',
+    data_alta: '',
+    observacoes: 'ENCAMINHADO PARA TERAPIA OCUPACIONAL E PSICOPEDAGOGIA NO CENTRO DE AUTISMO.',
+    evolucoes: [
+      {
+        id: 'evo-2',
+        dataHora: '2026-05-08T14:30:00',
+        profissional: 'Mariana Duarte (Terapeuta Ocupacional - CREFITO 88124)',
+        tipoAtendimento: 'Avaliação Terapia Ocupacional',
+        descricao: 'Avaliação do perfil sensorial e habilidades de vida diária. Criança comunicativa com hiperfoco e hipersensibilidade auditiva.',
+        conduta: 'Iniciado plano terapêutico individual com foco em integração sensorial e adaptações escolares.'
+      }
+    ],
+    createdAt: '2026-01-05T10:30:00'
+  },
+  {
+    id: '3',
+    data_entrada: '15/01/2026',
+    nome: 'MARIA FRANCISCA DA SILVA',
+    dn: '12/04/1968',
+    idade: 58,
+    telefone: '(31) 98452-1144',
+    municipio: 'SETE LAGOAS',
+    esf: 'ESF BELO VALE II',
+    cid: 'I69.4 - SEQUELA DE AVC',
+    remetente: 'APS / MUNICIPIO',
+    servico_especializado: 'OPM',
+    opm_list: [
+      { tipo: 'ÓRTESE', solicitada: 'ÓRTESE TORNOZELO-PÉ (AFO / GOTEIRA)' },
+      { tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', solicitada: 'BENGALA 4 PONTAS' }
+    ],
+    avaliacao_junta: 'CER II',
+    data_avaliacao: '20/01/2026',
+    presenca: 'COMPARECEU',
+    status: 'PROVA E AJUSTE',
+    data_alta: '',
+    observacoes: 'PACIENTE EM TREINO DE MARCHA COM ÓRTESE AFO À ESQUERDA.',
     evolucoes: [
       {
         id: 'evo-3',
-        dataHora: '2026-10-20T10:00:00',
-        profissional: 'Mariana Duarte (Terapeuta Ocupacional - CREFITO 88124)',
-        tipoAtendimento: 'Medição e Moldagem de OPM',
-        descricao: 'Realizada tomada de medidas antropométricas: largura de quadril 28cm, profundidade de assento 32cm, altura do encosto 45cm. Prescritos apoios laterais e apoio de cabeça anatômico.',
-        conduta: 'Encaminhado pedido ao laboratório de tecnologia assistiva. Aguardando entrega da estrutura base para adaptação.'
+        dataHora: '2026-01-20T11:00:00',
+        profissional: 'Dra. Camila Rocha (Fisioterapeuta - CREFITO 14829)',
+        tipoAtendimento: 'Prova / Ajuste de OPM',
+        descricao: 'Realizada prova da goteira AFO em polipropileno a 90 graus. Bom alinhamento tíbio-társico, sem pontos de compressão excessiva.',
+        conduta: 'Liberado uso gradual: 2 horas diárias na primeira semana. Retorno em 15 dias.'
       }
     ],
-    createdAt: '2026-10-20T10:00:00'
-  },
-  {
-    id: 'demo-3',
-    dataEntrada: '2026-10-28',
-    nome: 'Antônio Carlos de Albuquerque',
-    dataNascimento: '1955-11-03',
-    idade: '70 anos e 11 m',
-    telefone: '(11) 96541-2233',
-    municipio: 'Santo André',
-    esfReferencia: 'ESF Centro Integrado',
-    cid: 'S88.0 - Amputação traumática da perna (nível transtibial D)',
-    tipoOpm: 'Prótese Transtibial',
-    status: 'em_avaliacao',
-    prontuarioObservacoes: 'Paciente diabético pós-amputação transtibial direita há 6 meses. Coto cicatrizado, sem espículas ósseas palpatórias, com bom tônus muscular para protetização.',
-    evolucoes: [
-      {
-        id: 'evo-4',
-        dataHora: '2026-10-28T11:00:00',
-        profissional: 'Felipe Santos (Protesista / Ortesista)',
-        tipoAtendimento: 'Avaliação Inicial',
-        descricao: 'Avaliação do coto: formato cônico regular, sensibilidade preservada, força muscular de quadríceps grau 4+. Indicado soquete com liner de silicone e pé dinâmico.',
-        conduta: 'Iniciado enfaixamento compressivo de modelagem final. Tiragem de molde em gesso marcada para próxima semana.'
-      }
-    ],
-    createdAt: '2026-10-28T11:00:00'
+    createdAt: '2026-01-15T11:00:00'
   }
 ];

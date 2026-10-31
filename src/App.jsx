@@ -30,8 +30,8 @@ export default function App() {
   const [printPatient, setPrintPatient] = useState(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
-  // Filtro ativo vindo dos Cards de Estatísticas
-  const [activeStatusFilter, setActiveStatusFilter] = useState('todos');
+  // Filtro ativo vindo dos Cards de Estatísticas (Serviços)
+  const [activeServicoFilter, setActiveServicoFilter] = useState('todos');
 
   // Assinatura em tempo real dos pacientes
   useEffect(() => {
@@ -142,9 +142,9 @@ export default function App() {
         {/* Cards de Métricas e Indicadores Rápidos */}
         <StatsCards
           pacientes={pacientes}
-          activeFilter={activeStatusFilter}
+          activeFilter={activeServicoFilter}
           onSelectFilter={(filter) => {
-            setActiveStatusFilter(activeStatusFilter === filter ? 'todos' : filter);
+            setActiveServicoFilter(activeServicoFilter === filter ? 'todos' : filter);
           }}
         />
 
@@ -156,8 +156,8 @@ export default function App() {
           onDeletePatient={handleDeletePatient}
           onOpenEvolutionModal={handleOpenEvolutionModal}
           onPrintPatient={(p) => setPrintPatient(p)}
-          activeStatusFilter={activeStatusFilter}
-          onClearStatusFilter={() => setActiveStatusFilter('todos')}
+          activeServicoFilter={activeServicoFilter}
+          onSelectServicoFilter={setActiveServicoFilter}
         />
 
       </main>
@@ -203,3 +203,4 @@ export default function App() {
     </div>
   );
 }
+

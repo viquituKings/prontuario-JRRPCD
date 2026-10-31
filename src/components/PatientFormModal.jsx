@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   X, 
   Calendar, 
@@ -7,92 +7,157 @@ import {
   MapPin, 
   Building2, 
   Stethoscope, 
-  Accessibility, 
-  FileText, 
+  PlusCircle, 
+  Trash2, 
   Save, 
   Sparkles,
-  HelpCircle
+  FileText,
+  Hospital,
+  Clock,
+  CheckCircle2
 } from 'lucide-react';
 import { 
+  SERVICOS_ESPECIALIZADOS, 
+  TIPOS_OPM, 
   OPMS_SUGERIDAS, 
-  CIDS_COMUNS, 
-  STATUS_PACIENTE, 
+  CIDS_DATABASE, 
+  STATUS_SUGESTOES, 
+  PRESENCA_SUGESTOES, 
+  REMETENTE_SUGESTOES, 
+  AVALIACAO_JUNTA_SUGESTOES, 
+  getHojeBR, 
   calcularIdade, 
-  formatarTelefone 
+  formatarTelefone, 
+  formatarMascaraData 
 } from '../types';
 
 export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdit }) {
-  const getTodayIso = () => new Date().toISOString().split('T')[0];
-
   const [formData, setFormData] = useState({
-    dataEntrada: getTodayIso(),
+    data_entrada: getHojeBR(),
     nome: '',
-    dataNascimento: '',
+    dn: '',
     idade: '',
     telefone: '',
     municipio: '',
-    esfReferencia: '',
+    esf: '',
     cid: '',
-    tipoOpm: '',
-    status: 'triagem',
-    prontuarioObservacoes: '',
+    servico_especializado: 'OPM',
+    opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
+    remetente: '',
+    avaliacao_junta: '',
+    data_avaliacao: '',
+    presenca: 'COMPARECEU',
+    status: 'INSERIDO',
+    data_alta: '',
+    observacoes: ''
   });
 
+  const [cidQuery, setCidQuery] = useState('');
+  const [showCidSuggestions, setShowCidSuggestions] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const cidInputRef = useRef(null);
 
-  // Carrega dados se estiver editando ou limpa se for novo
   useEffect(() => {
     if (patientToEdit) {
       setFormData({
-        dataEntrada: patientToEdit.dataEntrada || getTodayIso(),
+        data_entrada: patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(),
         nome: patientToEdit.nome || '',
-        dataNascimento: patientToEdit.dataNascimento || '',
+        dn: patientToEdit.dn || patientToEdit.dataNascimento || '',
         idade: patientToEdit.idade || '',
         telefone: patientToEdit.telefone || '',
         municipio: patientToEdit.municipio || '',
-        esfReferencia: patientToEdit.esfReferencia || '',
+        esf: patientToEdit.esf || patientToEdit.esfReferencia || '',
         cid: patientToEdit.cid || '',
-        tipoOpm: patientToEdit.tipoOpm || '',
-        status: patientToEdit.status || 'triagem',
-        prontuarioObservacoes: patientToEdit.prontuarioObservacoes || '',
+        servico_especializado: patientToEdit.servico_especializado || 'OPM',
+        opm_list: patientToEdit.opm_list && patientToEdit.opm_list.length > 0
+          ? patientToEdit.opm_list 
+          : patientToEdit.tipoOpm 
+          ? [{ tipo: 'ÓRTESE', solicitada: patientToEdit.tipoOpm }]
+          : [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
+        remetente: patientToEdit.remetente || '',
+        avaliacao_junta: patientToEdit.avaliacao_junta || '',
+        data_avaliacao: patientToEdit.data_avaliacao || '',
+        presenca: patientToEdit.presenca || 'COMPARECEU',
+        status: patientToEdit.status || 'INSERIDO',
+        data_alta: patientToEdit.data_alta || '',
+        observacoes: patientToEdit.observacoes || patientToEdit.prontuarioObservacoes || ''
       });
+      setCidQuery(patientToEdit.cid || '');
     } else {
       setFormData({
-        dataEntrada: getTodayIso(),
+        data_entrada: getHojeBR(),
         nome: '',
-        dataNascimento: '',
+        dn: '',
         idade: '',
         telefone: '',
         municipio: '',
-        esfReferencia: '',
+        esf: '',
         cid: '',
-        tipoOpm: '',
-        status: 'triagem',
-        prontuarioObservacoes: '',
+        servico_especializado: 'OPM',
+        opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
+        remetente: '',
+        avaliacao_junta: '',
+        data_avaliacao: '',
+        presenca: 'COMPARECEU',
+        status: 'INSERIDO',
+        data_alta: '',
+        observacoes: ''
       });
+      setCidQuery('');
     }
+    setShowCidSuggestions(false);
     setErrorMsg('');
   }, [patientToEdit, isOpen]);
 
   if (!isOpen) return null;
 
-  const handleNascimentoChange = (e) => {
-    const dataNasc = e.target.value;
-    const idadeCalculada = calcularIdade(dataNasc);
+  // Atualiza nascimento e recalcula idade automaticamente
+  const handleDnChange = (e) => {
+    const masked = formatarMascaraData(e.target.value);
+    const calculated = calcularIdade(masked);
     setFormData((prev) => ({
       ...prev,
-      dataNascimento: dataNasc,
-      idade: idadeCalculada || prev.idade
+      dn: masked,
+      idade: calculated !== '' ? calculated : prev.idade
     }));
   };
 
-  const handleTelefoneChange = (e) => {
-    const raw = e.target.value;
+  // Autocomplete de CID
+  const handleCidChange = (e) => {
+    const val = e.target.value.toUpperCase();
+    setCidQuery(val);
+    setFormData((prev) => ({ ...prev, cid: val }));
+    setShowCidSuggestions(val.trim().length > 0);
+  };
+
+  const handleSelectCid = (cidValue) => {
+    setCidQuery(cidValue);
+    setFormData((prev) => ({ ...prev, cid: cidValue }));
+    setShowCidSuggestions(false);
+  };
+
+  // Manipulação de lista dinâmica de OPMs
+  const handleAddOpmField = () => {
     setFormData((prev) => ({
       ...prev,
-      telefone: formatarTelefone(raw)
+      opm_list: [...prev.opm_list, { tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', solicitada: '' }]
     }));
+  };
+
+  const handleUpdateOpmField = (index, field, value) => {
+    setFormData((prev) => {
+      const updated = [...prev.opm_list];
+      updated[index] = { ...updated[index], [field]: value.toUpperCase() };
+      return { ...prev, opm_list: updated };
+    });
+  };
+
+  const handleRemoveOpmField = (index) => {
+    setFormData((prev) => {
+      const updated = prev.opm_list.filter((_, i) => i !== index);
+      return { ...prev, opm_list: updated.length > 0 ? updated : [{ tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', solicitada: '' }] };
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -101,19 +166,47 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
       setErrorMsg('Por favor, informe o Nome do paciente.');
       return;
     }
-    if (!formData.dataEntrada) {
+    if (!formData.data_entrada.trim()) {
       setErrorMsg('Por favor, informe a Data de Entrada.');
+      return;
+    }
+    if (!formData.cid.trim()) {
+      setErrorMsg('Por favor, informe o CID / Diagnóstico.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       setErrorMsg('');
-      await onSave({
+
+      // Formata OPMs filtrando entradas vazias
+      const cleanOpmList = formData.servico_especializado === 'OPM'
+        ? formData.opm_list.filter((o) => o.tipo && o.solicitada.trim())
+        : [];
+
+      // Monta objeto com compatibilidade para todos os campos do prontuario.example
+      const payload = {
         ...formData,
         id: patientToEdit?.id,
+        nome: formData.nome.toUpperCase(),
+        municipio: formData.municipio.toUpperCase(),
+        esf: formData.esf.toUpperCase(),
+        remetente: formData.remetente.toUpperCase(),
+        avaliacao_junta: formData.avaliacao_junta.toUpperCase(),
+        presenca: formData.presenca.toUpperCase(),
+        status: formData.status.toUpperCase(),
+        observacoes: formData.observacoes.toUpperCase(),
+        opm_list: cleanOpmList,
+        // Campos de compatibilidade legada
+        dataEntrada: formData.data_entrada,
+        dataNascimento: formData.dn,
+        esfReferencia: formData.esf,
+        tipoOpm: cleanOpmList.map((o) => `${o.tipo}: ${o.solicitada}`).join('; ') || formData.servico_especializado,
+        prontuarioObservacoes: formData.observacoes,
         evolucoes: patientToEdit?.evolucoes || []
-      });
+      };
+
+      await onSave(payload);
       onClose();
     } catch (err) {
       setErrorMsg('Erro ao salvar paciente: ' + (err.message || 'Erro desconhecido'));
@@ -122,22 +215,26 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
     }
   };
 
+  const filteredCids = CIDS_DATABASE.filter((c) =>
+    c.toUpperCase().includes(cidQuery.toUpperCase())
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-100 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-100 flex flex-col max-h-[94vh] animate-in fade-in zoom-in-95 duration-150">
         
-        {/* Cabeçalho do Modal */}
-        <div className="px-6 py-4 bg-gradient-to-r from-blue-700 to-blue-600 text-white flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-white/10 rounded-lg">
-              <User className="w-5 h-5" />
+        {/* Cabeçalho */}
+        <div className="px-6 py-4 bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-700 text-white flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center">
+              <Hospital className="w-5 h-5 text-blue-100" />
             </div>
             <div>
-              <h2 className="text-lg font-bold">
-                {patientToEdit ? 'Editar Prontuário do Paciente' : 'Cadastro de Novo Paciente'}
+              <h2 className="text-base sm:text-lg font-bold">
+                {patientToEdit ? 'Editar Paciente / Pedido' : 'Novo Paciente / Pedido'}
               </h2>
-              <p className="text-xs text-blue-100">
-                Preencha os dados de admissão e prontuário para o programa de OPM
+              <p className="text-[11px] text-blue-100 font-medium">
+                Gestão Junta • Protocolo de OPM e Reabilitação
               </p>
             </div>
           </div>
@@ -149,271 +246,399 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
           </button>
         </div>
 
-        {/* Formulário com Scroll Interno */}
-        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-5 flex-1">
+        {/* Formulário com Scroll */}
+        <form onSubmit={handleSubmit} className="overflow-y-auto p-6 space-y-5 flex-1 text-xs">
           {errorMsg && (
-            <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg flex items-center gap-2">
+            <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center gap-2">
               <span>⚠️</span>
-              <span>{errorMsg}</span>
+              <span className="font-medium">{errorMsg}</span>
             </div>
           )}
 
-          {/* Seção 1: Identificação Básica */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-blue-600" />
-              Identificação do Paciente
-            </h3>
+          {/* Bloco 1: Data de Entrada e Nome */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Data de Entrada <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="DD/MM/AAAA"
+                value={formData.data_entrada}
+                onChange={(e) => setFormData({ ...formData, data_entrada: formatarMascaraData(e.target.value) })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
-              
-              {/* Data de Entrada */}
-              <div className="md:col-span-4">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Data de Entrada <span className="text-red-500">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    required
-                    value={formData.dataEntrada}
-                    onChange={(e) => setFormData({ ...formData, dataEntrada: e.target.value })}
-                    className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                  />
+            <div className="md:col-span-2">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Nome do Paciente <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="NOME COMPLETO DO PACIENTE"
+                value={formData.nome}
+                onChange={(e) => setFormData({ ...formData, nome: e.target.value.toUpperCase() })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Bloco 2: DN, Idade e Telefone */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Data de Nascimento (DN) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="DD/MM/AAAA"
+                value={formData.dn}
+                onChange={handleDnChange}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>Idade</span>
+                <span className="text-[9px] text-blue-600 font-normal">Cálculo Auto</span>
+              </label>
+              <input
+                type="number"
+                placeholder="EX: 45"
+                value={formData.idade}
+                onChange={(e) => setFormData({ ...formData, idade: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none font-semibold"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Telefone / Contato
+              </label>
+              <input
+                type="text"
+                placeholder="(00) 00000-0000"
+                value={formData.telefone}
+                onChange={(e) => setFormData({ ...formData, telefone: formatarTelefone(e.target.value) })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Bloco 3: Município e ESF */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Município <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="EX: SETE LAGOAS, FUNILANDIA, ETC."
+                value={formData.municipio}
+                onChange={(e) => setFormData({ ...formData, municipio: e.target.value.toUpperCase() })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                ESF de Referência
+              </label>
+              <input
+                type="text"
+                placeholder="EX: ESF BELO VALE II, ESF MORRO DO CLARO"
+                value={formData.esf}
+                onChange={(e) => setFormData({ ...formData, esf: e.target.value.toUpperCase() })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+            </div>
+          </div>
+
+          {/* Bloco 4: CID e Serviço Especializado */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* CID com Autocomplete */}
+            <div className="relative">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                CID / Diagnóstico <span className="text-red-500">*</span>
+              </label>
+              <input
+                ref={cidInputRef}
+                type="text"
+                required
+                placeholder="EX: F84 - TEA, G12.2 - ELA, I69 - AVC"
+                value={formData.cid}
+                onChange={handleCidChange}
+                onFocus={() => setShowCidSuggestions(cidQuery.trim().length > 0)}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase font-bold text-slate-800 focus:ring-2 focus:ring-blue-500 outline-none"
+                autoComplete="off"
+              />
+
+              {/* Lista suspensa de sugestões */}
+              {showCidSuggestions && filteredCids.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-xl shadow-xl z-30 max-h-48 overflow-y-auto divide-y divide-slate-100">
+                  {filteredCids.map((c) => (
+                    <div
+                      key={c}
+                      onMouseDown={() => handleSelectCid(c)}
+                      className="px-3.5 py-2 hover:bg-blue-50 hover:text-blue-700 cursor-pointer font-medium uppercase text-[11px] transition"
+                    >
+                      {c}
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
+            </div>
 
-              {/* Status */}
-              <div className="md:col-span-8">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Status no Programa
+            {/* Serviço Especializado */}
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Serviço Especializado <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.servico_especializado}
+                onChange={(e) => setFormData({ ...formData, servico_especializado: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+                required
+              >
+                <option value="OPM">OPM</option>
+                <option value="Reab. Intelectual">REABILITAÇÃO INTELECTUAL</option>
+                <option value="Reab. Fisica">REABILITAÇÃO FÍSICA</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Bloco 5: Seção Dinâmica de OPM (Múltiplos Itens) */}
+          {formData.servico_especializado === 'OPM' && (
+            <div className="space-y-3 bg-blue-50/60 p-4 rounded-2xl border border-blue-200/80">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  Tipos e OPMs Solicitadas (Múltiplos) *
                 </label>
-                <select
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-medium"
+                <button
+                  type="button"
+                  onClick={handleAddOpmField}
+                  className="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1 bg-white px-2.5 py-1 rounded-lg border border-blue-200 shadow-sm transition hover:scale-[1.02]"
                 >
-                  {STATUS_PACIENTE.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.label}
-                    </option>
-                  ))}
-                </select>
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Adicionar Outro OPM</span>
+                </button>
               </div>
 
-              {/* Nome */}
-              <div className="md:col-span-12">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nome Completo <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Nome do paciente"
-                  value={formData.nome}
-                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
-              </div>
+              <div className="space-y-2.5">
+                {formData.opm_list.map((opm, idx) => (
+                  <div 
+                    key={idx}
+                    className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-white p-3 rounded-xl border border-blue-200 shadow-sm"
+                  >
+                    {/* Tipo de OPM */}
+                    <div className="md:col-span-5">
+                      <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-0.5">
+                        Tipo de OPM
+                      </label>
+                      <select
+                        value={opm.tipo}
+                        onChange={(e) => handleUpdateOpmField(idx, 'tipo', e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-semibold uppercase focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        required
+                      >
+                        {TIPOS_OPM.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
 
-              {/* Data de Nascimento */}
-              <div className="md:col-span-5">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Data de Nascimento
-                </label>
-                <input
-                  type="date"
-                  value={formData.dataNascimento}
-                  onChange={handleNascimentoChange}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
-              </div>
+                    {/* OPM Solicitada */}
+                    <div className="md:col-span-6">
+                      <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-0.5">
+                        OPM Solicitada
+                      </label>
+                      <input
+                        type="text"
+                        list={`opm-suggestions-${idx}`}
+                        value={opm.solicitada}
+                        onChange={(e) => handleUpdateOpmField(idx, 'solicitada', e.target.value)}
+                        placeholder="EX: CADEIRA MOTORIZADA, MULETA CANADENSE..."
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs uppercase focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        required
+                      />
+                      <datalist id={`opm-suggestions-${idx}`}>
+                        {OPMS_SUGERIDAS.map((s) => (
+                          <option key={s} value={s} />
+                        ))}
+                      </datalist>
+                    </div>
 
-              {/* Idade (calculada com ajuste manual opcional) */}
-              <div className="md:col-span-3">
-                <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center justify-between">
-                  <span>Idade</span>
-                  <span className="text-[10px] text-blue-600 font-normal">Auto / Manual</span>
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: 45 anos"
-                  value={formData.idade}
-                  onChange={(e) => setFormData({ ...formData, idade: e.target.value })}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
+                    {/* Botão Remover */}
+                    <div className="md:col-span-1 flex justify-end pt-3 sm:pt-4">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveOpmField(idx)}
+                        disabled={formData.opm_list.length === 1}
+                        className="text-slate-400 hover:text-red-600 disabled:opacity-30 p-1.5 transition"
+                        title="Remover OPM"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
+            </div>
+          )}
 
-              {/* Telefone */}
-              <div className="md:col-span-4">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Telefone / WhatsApp
-                </label>
-                <input
-                  type="text"
-                  placeholder="(00) 00000-0000"
-                  value={formData.telefone}
-                  onChange={handleTelefoneChange}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
-              </div>
+          {/* Bloco 6: Remetente, Avaliação da Junta e Data */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Remetente
+              </label>
+              <input
+                type="text"
+                list="remetente-sugestoes"
+                placeholder="EX: APS / MUNICIPIO"
+                value={formData.remetente}
+                onChange={(e) => setFormData({ ...formData, remetente: e.target.value.toUpperCase() })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <datalist id="remetente-sugestoes">
+                {REMETENTE_SUGESTOES.map((r) => (
+                  <option key={r} value={r} />
+                ))}
+              </datalist>
+            </div>
 
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Avaliação da Junta
+              </label>
+              <input
+                type="text"
+                list="junta-sugestoes"
+                placeholder="EX: CER II, CENTRO DE AUTISMO"
+                value={formData.avaliacao_junta}
+                onChange={(e) => setFormData({ ...formData, avaliacao_junta: e.target.value.toUpperCase() })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <datalist id="junta-sugestoes">
+                {AVALIACAO_JUNTA_SUGESTOES.map((j) => (
+                  <option key={j} value={j} />
+                ))}
+              </datalist>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Data de Avaliação / Envio
+              </label>
+              <input
+                type="text"
+                placeholder="DD/MM/AAAA"
+                value={formData.data_avaliacao}
+                onChange={(e) => setFormData({ ...formData, data_avaliacao: formatarMascaraData(e.target.value) })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
             </div>
           </div>
 
-          {/* Seção 2: Localização e Referência */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-blue-600" />
-              Origem e Referência SUS
-            </h3>
+          {/* Bloco 7: Presença, Status e Data da Alta */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Presença
+              </label>
+              <input
+                type="text"
+                list="presenca-sugestoes"
+                placeholder="EX: COMPARECEU"
+                value={formData.presenca}
+                onChange={(e) => setFormData({ ...formData, presenca: e.target.value.toUpperCase() })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-emerald-800"
+              />
+              <datalist id="presenca-sugestoes">
+                {PRESENCA_SUGESTOES.map((p) => (
+                  <option key={p} value={p} />
+                ))}
+              </datalist>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-              {/* Município */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Município
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: São Paulo, Santo André, etc."
-                  value={formData.municipio}
-                  onChange={(e) => setFormData({ ...formData, municipio: e.target.value })}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Status
+              </label>
+              <input
+                type="text"
+                list="status-sugestoes"
+                placeholder="EX: INSERIDO / AGUARDANDO OPM"
+                value={formData.status}
+                onChange={(e) => setFormData({ ...formData, status: e.target.value.toUpperCase() })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none font-semibold text-blue-800"
+              />
+              <datalist id="status-sugestoes">
+                {STATUS_SUGESTOES.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+            </div>
 
-              {/* ESF de Referência */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  ESF de Referência / Unidade Básica
-                </label>
-                <input
-                  type="text"
-                  placeholder="Ex: ESF Jardim das Flores, UBS Centro"
-                  value={formData.esfReferencia}
-                  onChange={(e) => setFormData({ ...formData, esfReferencia: e.target.value })}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
-              </div>
+            <div>
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+                Data da Alta
+              </label>
+              <input
+                type="text"
+                placeholder="DD/MM/AAAA"
+                value={formData.data_alta}
+                onChange={(e) => setFormData({ ...formData, data_alta: formatarMascaraData(e.target.value) })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              />
             </div>
           </div>
 
-          {/* Seção 3: Diagnóstico e OPM */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-4">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <Stethoscope className="w-3.5 h-3.5 text-blue-600" />
-              Dados Clínicos e OPM
-            </h3>
-
-            <div className="space-y-3.5">
-              {/* CID / Impressão Diagnóstica */}
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="block text-xs font-semibold text-slate-700">
-                    CID / Impressão Diagnóstica
-                  </label>
-                </div>
-                <input
-                  type="text"
-                  placeholder="Ex: G80 - Paralisia Cerebral, I69 - Sequela de AVC, etc."
-                  value={formData.cid}
-                  onChange={(e) => setFormData({ ...formData, cid: e.target.value })}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
-                />
-
-                {/* Sugestões rápidas de CID */}
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  <span className="text-[11px] text-slate-400 self-center mr-1">Sugestões rápidas:</span>
-                  {CIDS_COMUNS.slice(0, 5).map((c) => (
-                    <button
-                      key={c.codigo}
-                      type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, cid: `${c.codigo} - ${c.descricao}` }))}
-                      className="text-[11px] px-2 py-0.5 bg-white hover:bg-blue-50 hover:text-blue-700 border border-slate-200 rounded text-slate-600 transition"
-                    >
-                      {c.codigo}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Tipo de OPM */}
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tipo de OPM (Órtese, Prótese ou Meio Auxiliar)
-                </label>
-                <input
-                  type="text"
-                  list="opms-list"
-                  placeholder="Selecione ou digite o tipo de OPM..."
-                  value={formData.tipoOpm}
-                  onChange={(e) => setFormData({ ...formData, tipoOpm: e.target.value })}
-                  className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-medium"
-                />
-                <datalist id="opms-list">
-                  {OPMS_SUGERIDAS.map((opm) => (
-                    <option key={opm} value={opm} />
-                  ))}
-                </datalist>
-
-                {/* Atalhos de OPMs frequentes */}
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {['Cadeira de Rodas Padrão Adulto', 'Cadeira de Banho', 'AFO / Goteira', 'Andador', 'Prótese Transtibial'].map((opm) => (
-                    <button
-                      key={opm}
-                      type="button"
-                      onClick={() => setFormData((prev) => ({ ...prev, tipoOpm: opm }))}
-                      className="text-[11px] px-2 py-0.5 bg-white hover:bg-purple-50 hover:text-purple-700 border border-slate-200 rounded text-slate-600 transition"
-                    >
-                      + {opm}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Seção 4: Prontuário / Observações */}
-          <div className="bg-slate-50 p-4 rounded-xl border border-slate-200/80 space-y-2">
-            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-blue-600" />
-              Prontuário / Observações Iniciais
-            </h3>
-            <p className="text-xs text-slate-500">
-              Descreva histórico clínico, queixa principal, condições do coto/membro, indicação clínica ou observações relevantes.
-            </p>
+          {/* Bloco 8: Prontuário / Observações */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
+              Prontuário / Observações Adicionais
+            </label>
             <textarea
-              rows={4}
-              placeholder="Digite aqui o prontuário e observações clínicas iniciais do paciente..."
-              value={formData.prontuarioObservacoes}
-              onChange={(e) => setFormData({ ...formData, prontuarioObservacoes: e.target.value })}
-              className="w-full text-sm rounded-lg border-slate-300 border p-3 bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-y"
+              rows={3}
+              placeholder="OBSERVAÇÕES ADICIONAIS, HISTÓRICO CLÍNICO, DETALHES DE RECEBIMENTO..."
+              value={formData.observacoes}
+              onChange={(e) => setFormData({ ...formData, observacoes: e.target.value.toUpperCase() })}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed resize-y"
             />
           </div>
 
-          {/* Botões do Rodapé */}
-          <div className="pt-2 flex items-center justify-end gap-3">
+          {/* Rodapé com botões de ação */}
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
               disabled={isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition"
+              className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-semibold text-xs hover:bg-slate-50 transition"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-sm transition disabled:opacity-50"
+              className="px-6 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs shadow-lg shadow-blue-500/20 transition flex items-center gap-2 disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Salvando...' : 'Salvar Prontuário'}</span>
+              <span>{isSubmitting ? 'Salvando...' : 'Salvar Paciente/Pedido'}</span>
             </button>
           </div>
 
         </form>
+
       </div>
     </div>
   );
