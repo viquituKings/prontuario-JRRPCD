@@ -37,14 +37,14 @@ export function getStoredFirebaseConfig() {
     console.warn('Erro ao ler config do localStorage:', e);
   }
 
-  // Fallback para variáveis de ambiente
+  // Fallback para variáveis de ambiente ou projeto configurado
   const envConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || '',
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '',
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || '',
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyBENg7P18TKIJuowfLe7gm9MS8vNYoI9A8',
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 'prontuariojrrcpd.firebaseapp.com',
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || 'prontuariojrrcpd',
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 'prontuariojrrcpd.firebasestorage.app',
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || '363815324732',
+    appId: import.meta.env.VITE_FIREBASE_APP_ID || '1:363815324732:web:44e9a040fc2b7dd52d8739',
   };
 
   if (envConfig.apiKey && envConfig.projectId) {
@@ -315,3 +315,4 @@ export async function excluirEvolucao(pacienteId, evolucaoId) {
     return { success: true, mode: 'local' };
   }
 }
+
