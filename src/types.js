@@ -3,8 +3,32 @@
 export const SERVICOS_ESPECIALIZADOS = [
   'OPM',
   'Reab. Intelectual',
-  'Reab. Fisica'
+  'Reab. Fisica',
+  'Reab. Visual',
+  'Neonato de Risco'
 ];
+
+/**
+ * Retorna as classes Tailwind para o badge do serviço especializado
+ */
+export function getBadgeColorServico(servico) {
+  switch (servico) {
+    case 'OPM':
+      return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'Reab. Intelectual':
+      return 'bg-purple-100 text-purple-700 border-purple-200';
+    case 'Reab. Fisica':
+      return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+    case 'Reab. Visual':
+    case 'Reabilitação Visual':
+      return 'bg-amber-100 text-amber-800 border-amber-200';
+    case 'Neonato de Risco':
+    case 'Neonato de risco':
+      return 'bg-rose-100 text-rose-700 border-rose-200';
+    default:
+      return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+}
 
 export const TIPOS_OPM = [
   'MEIO AUXILIAR DE LOCOMOÇÃO',

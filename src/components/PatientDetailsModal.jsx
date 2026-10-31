@@ -23,7 +23,8 @@ import {
 import { 
   formatarDataHoraBR, 
   isMotorizadaSolicitada, 
-  verificarCompatibilidadeMotorizada 
+  verificarCompatibilidadeMotorizada,
+  getBadgeColorServico
 } from '../types';
 
 export default function PatientDetailsModal({
@@ -52,12 +53,7 @@ export default function PatientDetailsModal({
   const cleanPhone = patient.telefone ? patient.telefone.replace(/\D/g, '') : '';
   const whatsappUrl = cleanPhone.length >= 10 ? `https://wa.me/55${cleanPhone}` : null;
 
-  const badgeColor = 
-    servico === 'OPM' 
-      ? 'bg-blue-100 text-blue-800 border-blue-200' 
-      : servico === 'Reab. Intelectual' 
-      ? 'bg-purple-100 text-purple-800 border-purple-200' 
-      : 'bg-emerald-100 text-emerald-800 border-emerald-200';
+  const badgeColor = getBadgeColorServico(servico);
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">

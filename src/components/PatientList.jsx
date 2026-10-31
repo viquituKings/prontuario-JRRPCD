@@ -16,7 +16,8 @@ import {
   isMotorizadaSolicitada,
   verificarCompatibilidadeMotorizada,
   extrairPacientesUnicos,
-  contarOpmsSolicitadas
+  contarOpmsSolicitadas,
+  getBadgeColorServico
 } from '../types';
 
 export default function PatientList({
@@ -112,6 +113,8 @@ export default function PatientList({
               <option value="OPM">OPM</option>
               <option value="Reab. Intelectual">REAB. INTELECTUAL</option>
               <option value="Reab. Fisica">REAB. FÍSICA</option>
+              <option value="Reab. Visual">REAB. VISUAL</option>
+              <option value="Neonato de Risco">NEONATO DE RISCO</option>
             </select>
           </div>
 
@@ -211,12 +214,7 @@ export default function PatientList({
               ) : (
                 filteredPacientes.map((p) => {
                   const servico = p.servico_especializado || 'OPM';
-                  const badgeColor = 
-                    servico === 'OPM' 
-                      ? 'bg-blue-100 text-blue-700' 
-                      : servico === 'Reab. Intelectual' 
-                      ? 'bg-purple-100 text-purple-700' 
-                      : 'bg-emerald-100 text-emerald-700';
+                  const badgeColor = getBadgeColorServico(servico);
 
                   const opms = p.opm_list || [];
                   const dataEntrada = p.data_entrada || p.dataEntrada || '-';

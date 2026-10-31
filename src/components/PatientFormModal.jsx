@@ -831,6 +831,8 @@ export default function PatientFormModal({
               <option value="OPM">OPM</option>
               <option value="Reab. Intelectual">REABILITAÇÃO INTELECTUAL</option>
               <option value="Reab. Fisica">REABILITAÇÃO FÍSICA</option>
+              <option value="Reab. Visual">REABILITAÇÃO VISUAL</option>
+              <option value="Neonato de Risco">NEONATO DE RISCO</option>
             </select>
           </div>
 
