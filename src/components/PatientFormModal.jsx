@@ -40,7 +40,8 @@ import {
   removerAcentos,
   normalizarTexto,
   isMotorizadaSolicitada,
-  verificarCompatibilidadeMotorizada
+  verificarCompatibilidadeMotorizada,
+  extrairPacientesUnicos
 } from '../types';
 
 export default function PatientFormModal({ 
@@ -69,7 +70,7 @@ export default function PatientFormModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [cpfValidationState, setCpfValidationState] = useState(null); // null | 'valid' | 'invalid'
-  const [linkedExistingPatient, setLinkedExistingPatient] = useState(null);
+  const [autofilledPatient, setAutofilledPatient] = useState(null);
 
   // Estados dos menus de autocomplete de Paciente e Mãe
   const [showNameSuggestions, setShowNameSuggestions] = useState(false);
@@ -130,7 +131,7 @@ export default function PatientFormModal({
       } else {
         setCpfValidationState(null);
       }
-      setLinkedExistingPatient(patientToEdit);
+      setAutofilledPatient(null);
     } else {
       setFormData({
         data_entrada: getHojeBR(),
@@ -148,36 +149,41 @@ export default function PatientFormModal({
         observacoes: ''
       });
       setCpfValidationState(null);
-      setLinkedExistingPatient(null);
+      setAutofilledPatient(null);
     }
     setShowNameSuggestions(false);
     setShowMotherSuggestions(false);
     setErrorMsg('');
   }, [patientToEdit, isOpen]);
 
+  // Autocomplete: Relação de pacientes únicos cadastrados no banco
+  const uniquePatientsList = useMemo(() => {
+    return extrairPacientesUnicos(existingPatients);
+  }, [existingPatients]);
+
   // Autocomplete: Busca pacientes existentes pelo Nome do Paciente
   const nameQuery = normalizarTexto(formData.nome);
   const matchingPatientsByName = useMemo(() => {
     if (!nameQuery || nameQuery.length < 2) return [];
-    return existingPatients.filter((p) => {
+    return uniquePatientsList.filter((p) => {
       if (patientToEdit && p.id === patientToEdit.id) return false;
       const pNome = normalizarTexto(p.nome || '');
       return pNome.includes(nameQuery);
     }).slice(0, 8);
-  }, [nameQuery, existingPatients, patientToEdit]);
+  }, [nameQuery, uniquePatientsList, patientToEdit]);
 
   // Autocomplete: Busca pacientes existentes pelo Nome da Mãe
   const motherQuery = normalizarTexto(formData.nome_mae);
   const matchingPatientsByMother = useMemo(() => {
     if (!motherQuery || motherQuery.length < 2) return [];
-    return existingPatients.filter((p) => {
+    return uniquePatientsList.filter((p) => {
       if (patientToEdit && p.id === patientToEdit.id) return false;
       const pMother = normalizarTexto(p.nome_mae || p.nomeMae || '');
       return pMother.includes(motherQuery);
     }).slice(0, 8);
-  }, [motherQuery, existingPatients, patientToEdit]);
+  }, [motherQuery, uniquePatientsList, patientToEdit]);
 
-  // Autocompleta todos os dados do paciente selecionado no formulário
+  // Autocompleta todos os dados cadastrais do paciente, SEM buscar as OPMs anteriores
   const handleAutofillFromPatient = (p) => {
     const cleanCpf = p.cpf || '';
     const dnVal = p.dn || p.dataNascimento || '';
@@ -189,13 +195,6 @@ export default function PatientFormModal({
     } else if (p.cid) {
       initialCids = p.cid.split(/[;,]/).map((c) => c.trim()).filter(Boolean);
       if (initialCids.length === 0) initialCids = [''];
-    }
-
-    let initialOpms = [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }];
-    if (p.opm_list && Array.isArray(p.opm_list) && p.opm_list.length > 0) {
-      initialOpms = p.opm_list;
-    } else if (p.tipoOpm) {
-      initialOpms = [{ tipo: 'ÓRTESE', solicitada: p.tipoOpm }];
     }
 
     setFormData((prev) => ({
@@ -210,7 +209,8 @@ export default function PatientFormModal({
       esf: p.esf || p.esfReferencia || '',
       cid_list: initialCids,
       servico_especializado: p.servico_especializado || 'OPM',
-      opm_list: initialOpms,
+      // NÃO busca OPMs já solicitadas pelo paciente anteriormente (mantém limpo para novas solicitações)
+      opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
       observacoes: p.observacoes || p.prontuarioObservacoes || prev.observacoes
     }));
 
@@ -221,7 +221,7 @@ export default function PatientFormModal({
       setCpfValidationState(null);
     }
 
-    setLinkedExistingPatient(p);
+    setAutofilledPatient(p);
     setShowNameSuggestions(false);
     setShowMotherSuggestions(false);
   };
@@ -349,32 +349,65 @@ export default function PatientFormModal({
 
       const joinedCid = cleanCidList.join('; ');
 
-      const targetId = patientToEdit?.id || linkedExistingPatient?.id;
-      const targetEvolucoes = patientToEdit?.evolucoes || linkedExistingPatient?.evolucoes || [];
+      // O mesmo paciente pode solicitar mais de um OPM, e cada OPM deste deve gerar um novo registro
+      if (formData.servico_especializado === 'OPM' && cleanOpmList.length > 0) {
+        const payloads = cleanOpmList.map((opmItem, idx) => {
+          // Se estiver editando um registro existente, o 1º OPM atualiza o registro atual;
+          // qualquer OPM adicional gera um novo registro no banco.
+          // Se for novo cadastro, cada OPM gera um novo registro independente.
+          const isPrimaryEdit = Boolean(patientToEdit && idx === 0);
+          const targetId = isPrimaryEdit ? patientToEdit.id : undefined;
+          const targetEvolucoes = isPrimaryEdit ? (patientToEdit.evolucoes || []) : [];
 
-      const payload = {
-        ...formData,
-        id: targetId,
-        nome: removerAcentos(formData.nome),
-        cpf: formData.cpf,
-        nome_mae: removerAcentos(formData.nome_mae),
-        municipio: formData.municipio.toUpperCase(),
-        esf: formData.esf.toUpperCase(),
-        cid_list: cleanCidList,
-        cid: joinedCid,
-        observacoes: formData.observacoes.toUpperCase(),
-        opm_list: cleanOpmList,
-        // Compatibilidade legada
-        nomeMae: removerAcentos(formData.nome_mae),
-        dataEntrada: formData.data_entrada,
-        dataNascimento: formData.dn,
-        esfReferencia: formData.esf,
-        tipoOpm: cleanOpmList.map((o) => `${o.tipo}: ${o.solicitada}`).join('; ') || formData.servico_especializado,
-        prontuarioObservacoes: formData.observacoes,
-        evolucoes: targetEvolucoes
-      };
+          return {
+            ...formData,
+            id: targetId,
+            nome: removerAcentos(formData.nome),
+            cpf: formData.cpf,
+            nome_mae: removerAcentos(formData.nome_mae),
+            municipio: formData.municipio.toUpperCase(),
+            esf: formData.esf.toUpperCase(),
+            cid_list: cleanCidList,
+            cid: joinedCid,
+            observacoes: formData.observacoes.toUpperCase(),
+            opm_list: [opmItem],
+            tipoOpm: `${opmItem.tipo}: ${opmItem.solicitada}`,
+            // Compatibilidade legada
+            nomeMae: removerAcentos(formData.nome_mae),
+            dataEntrada: formData.data_entrada,
+            dataNascimento: formData.dn,
+            esfReferencia: formData.esf,
+            prontuarioObservacoes: formData.observacoes,
+            evolucoes: targetEvolucoes
+          };
+        });
 
-      await onSave(payload);
+        await onSave(payloads);
+      } else {
+        // Serviços não-OPM (Reab. Intelectual, Reab. Física) ou OPM sem item específico
+        const payload = {
+          ...formData,
+          id: patientToEdit?.id,
+          nome: removerAcentos(formData.nome),
+          cpf: formData.cpf,
+          nome_mae: removerAcentos(formData.nome_mae),
+          municipio: formData.municipio.toUpperCase(),
+          esf: formData.esf.toUpperCase(),
+          cid_list: cleanCidList,
+          cid: joinedCid,
+          observacoes: formData.observacoes.toUpperCase(),
+          opm_list: cleanOpmList,
+          tipoOpm: cleanOpmList.map((o) => `${o.tipo}: ${o.solicitada}`).join('; ') || formData.servico_especializado,
+          nomeMae: removerAcentos(formData.nome_mae),
+          dataEntrada: formData.data_entrada,
+          dataNascimento: formData.dn,
+          esfReferencia: formData.esf,
+          prontuarioObservacoes: formData.observacoes,
+          evolucoes: patientToEdit?.evolucoes || []
+        };
+
+        await onSave(payload);
+      }
       onClose();
     } catch (err) {
       setErrorMsg('Erro ao salvar paciente: ' + (err.message || 'Erro desconhecido'));
@@ -424,28 +457,28 @@ export default function PatientFormModal({
           )}
 
           {/* Banner de Dados Autocompletados do Banco */}
-          {linkedExistingPatient && !patientToEdit && (
-            <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs animate-in fade-in">
+          {autofilledPatient && !patientToEdit && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl flex items-center justify-between gap-3 text-xs animate-in fade-in">
               <div className="flex items-start gap-2.5">
                 <div className="p-1.5 bg-blue-600 text-white rounded-xl shrink-0 mt-0.5">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="font-bold text-blue-900">
-                    Dados autocompletados do cadastro de: <span className="underline">{linkedExistingPatient.nome}</span>
+                    Dados cadastrais recuperados de: <span className="underline">{autofilledPatient.nome}</span>
                   </div>
                   <div className="text-[11px] text-blue-700">
-                    Mãe: {linkedExistingPatient.nome_mae || linkedExistingPatient.nomeMae || '-'} • Todos os campos foram preenchidos e podem ser alterados.
+                    Mãe: {autofilledPatient.nome_mae || autofilledPatient.nomeMae || '-'} • As OPMs anteriores não foram copiadas. Cada OPM solicitada abaixo gerará um novo registro independente.
                   </div>
                 </div>
               </div>
               <button
                 type="button"
-                onClick={() => setLinkedExistingPatient(null)}
-                className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-sm transition"
-                title="Salvar como um novo prontuário sem sobrescrever o cadastro existente"
+                onClick={() => setAutofilledPatient(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg transition"
+                title="Fechar aviso"
               >
-                Salvar como Novo Prontuário
+                <X className="w-4 h-4" />
               </button>
             </div>
           )}

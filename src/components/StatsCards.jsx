@@ -1,12 +1,11 @@
 import React from 'react';
 import { Users, Accessibility, Brain, Activity } from 'lucide-react';
+import { extrairPacientesUnicos, contarOpmsSolicitadas } from '../types';
 
 export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) {
-  const total = pacientes.length;
-
-  const totalOpm = pacientes.filter(
-    (p) => p.servico_especializado === 'OPM' || (!p.servico_especializado && p.tipoOpm)
-  ).length;
+  const totalPacientesUnicos = extrairPacientesUnicos(pacientes).length;
+  const totalOpms = contarOpmsSolicitadas(pacientes);
+  const totalRegistros = pacientes.length;
 
   const totalIntelectual = pacientes.filter(
     (p) => p.servico_especializado === 'Reab. Intelectual'
@@ -20,7 +19,8 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
     {
       id: 'todos',
       label: 'Total de Pacientes',
-      count: total,
+      count: totalPacientesUnicos,
+      subtext: `${totalRegistros} registros de atendimento`,
       icon: Users,
       bgColor: 'bg-blue-50',
       iconColor: 'text-blue-600',
@@ -28,8 +28,9 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
     },
     {
       id: 'OPM',
-      label: 'Pedidos OPM',
-      count: totalOpm,
+      label: 'OPMs Solicitadas',
+      count: totalOpms,
+      subtext: 'Tecnologias assistivas / Órteses / Próteses',
       icon: Accessibility,
       bgColor: 'bg-indigo-50',
       iconColor: 'text-indigo-600',
@@ -39,6 +40,7 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
       id: 'Reab. Intelectual',
       label: 'Reabilitação Intelectual',
       count: totalIntelectual,
+      subtext: 'Atendimentos Intelectuais',
       icon: Brain,
       bgColor: 'bg-purple-50',
       iconColor: 'text-purple-600',
@@ -48,6 +50,7 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
       id: 'Reab. Fisica',
       label: 'Reabilitação Física',
       count: totalFisica,
+      subtext: 'Atendimentos Físicos / Motores',
       icon: Activity,
       bgColor: 'bg-emerald-50',
       iconColor: 'text-emerald-600',
@@ -65,21 +68,26 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
           <button
             key={card.id}
             onClick={() => onSelectFilter(card.id)}
-            className={`text-left p-6 rounded-2xl border transition-all duration-200 flex items-center justify-between ${
+            className={`text-left p-5 sm:p-6 rounded-2xl border transition-all duration-200 flex items-center justify-between ${
               isSelected 
                 ? 'ring-2 ring-blue-500 shadow-md bg-white border-blue-500 scale-[1.02]' 
                 : 'bg-white hover:border-slate-300 hover:shadow-sm border-slate-100'
             }`}
           >
-            <div>
+            <div className="space-y-0.5">
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                 {card.label}
               </p>
-              <h3 className={`text-2xl font-bold mt-1 ${card.textColor}`}>
+              <h3 className={`text-2xl font-bold ${card.textColor}`}>
                 {card.count}
               </h3>
+              {card.subtext && (
+                <p className="text-[11px] text-slate-400 font-medium truncate max-w-[170px] sm:max-w-[190px]">
+                  {card.subtext}
+                </p>
+              )}
             </div>
-            <div className={`w-12 h-12 rounded-2xl ${card.bgColor} ${card.iconColor} flex items-center justify-center text-xl shadow-sm`}>
+            <div className={`w-12 h-12 rounded-2xl ${card.bgColor} ${card.iconColor} flex items-center justify-center text-xl shadow-sm shrink-0 ml-2`}>
               <Icon className="w-6 h-6" />
             </div>
           </button>

@@ -14,7 +14,9 @@ import {
 import { 
   MUNICIPIOS_SUGERIDOS,
   isMotorizadaSolicitada,
-  verificarCompatibilidadeMotorizada
+  verificarCompatibilidadeMotorizada,
+  extrairPacientesUnicos,
+  contarOpmsSolicitadas
 } from '../types';
 
 export default function PatientList({
@@ -174,6 +176,17 @@ export default function PatientList({
 
       {/* Tabela de Pacientes fiel ao prontuario.example */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+        {/* Barra com contagem separada de registros, pacientes e OPMs */}
+        <div className="px-5 py-3 bg-slate-50/80 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 font-medium">
+          <div>
+            Exibindo <strong className="text-slate-800">{filteredPacientes.length}</strong> {filteredPacientes.length === 1 ? 'registro' : 'registros'} 
+            <span className="mx-2 text-slate-300">•</span>
+            <strong className="text-blue-700">{extrairPacientesUnicos(filteredPacientes).length}</strong> {extrairPacientesUnicos(filteredPacientes).length === 1 ? 'paciente único' : 'pacientes únicos'}
+            <span className="mx-2 text-slate-300">•</span>
+            <strong className="text-indigo-700">{contarOpmsSolicitadas(filteredPacientes)}</strong> {contarOpmsSolicitadas(filteredPacientes) === 1 ? 'OPM solicitada' : 'OPMs solicitadas'}
+          </div>
+        </div>
+
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>

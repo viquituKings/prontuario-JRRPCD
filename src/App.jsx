@@ -70,7 +70,13 @@ export default function App() {
   };
 
   const handleSavePatient = async (patientData) => {
-    await salvarPaciente(patientData);
+    if (Array.isArray(patientData)) {
+      for (const item of patientData) {
+        await salvarPaciente(item);
+      }
+    } else {
+      await salvarPaciente(patientData);
+    }
   };
 
   const handleDeletePatient = async (patientId) => {

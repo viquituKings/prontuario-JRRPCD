@@ -274,6 +274,61 @@ export function removerAcentos(str) {
 }
 
 /**
+ * Gera uma chave identificadora única para o paciente para desduplicação
+ * (CPF ou combinação de Nome + Nome da Mãe + Data de Nascimento)
+ */
+export function getChaveIdentificacaoPaciente(p) {
+  if (!p) return '';
+  const cpfDigits = (p.cpf || '').replace(/\D/g, '');
+  if (cpfDigits.length === 11) {
+    return `CPF_${cpfDigits}`;
+  }
+  const nomeNorm = normalizarTexto(p.nome || '');
+  const maeNorm = normalizarTexto(p.nome_mae || p.nomeMae || '');
+  const dnVal = (p.dn || p.dataNascimento || '').trim();
+  return `PAC_${nomeNorm}|MAE_${maeNorm}|DN_${dnVal}`;
+}
+
+/**
+ * Retorna a lista de pacientes únicos a partir da relação total de registros
+ */
+export function extrairPacientesUnicos(pacientes = []) {
+  if (!Array.isArray(pacientes)) return [];
+  const mapa = new Map();
+  for (const p of pacientes) {
+    if (!p) continue;
+    const chave = getChaveIdentificacaoPaciente(p);
+    if (!mapa.has(chave)) {
+      mapa.set(chave, p);
+    }
+  }
+  return Array.from(mapa.values());
+}
+
+/**
+ * Retorna a contagem total de OPMs solicitadas em todos os registros
+ */
+export function contarOpmsSolicitadas(pacientes = []) {
+  if (!Array.isArray(pacientes)) return 0;
+  let total = 0;
+  for (const p of pacientes) {
+    if (!p) continue;
+    if (p.servico_especializado === 'OPM' || (!p.servico_especializado && p.tipoOpm)) {
+      if (p.opm_list && Array.isArray(p.opm_list) && p.opm_list.length > 0) {
+        const validOpms = p.opm_list.filter((o) => o.solicitada && o.solicitada.trim());
+        total += validOpms.length > 0 ? validOpms.length : 1;
+      } else if (p.tipoOpm) {
+        const itens = p.tipoOpm.split(/[;]/).map((s) => s.trim()).filter(Boolean);
+        total += itens.length > 0 ? itens.length : 1;
+      } else {
+        total += 1;
+      }
+    }
+  }
+  return total;
+}
+
+/**
  * Retorna a data atual no formato DD/MM/AAAA
  */
 export function getHojeBR() {

@@ -176,7 +176,7 @@ export function subscribePacientes(onUpdate, onError) {
  */
 export async function salvarPaciente(pacienteData) {
   const db = getDb();
-  const id = pacienteData.id || `paciente_${Date.now()}`;
+  const id = pacienteData.id || (db ? doc(collection(db, 'pacientes')).id : `paciente_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`);
   const nowIso = new Date().toISOString();
 
   const payload = {
