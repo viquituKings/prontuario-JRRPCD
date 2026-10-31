@@ -348,11 +348,11 @@ export default function PatientList({
                             <Eye className="w-4 h-4" />
                           </button>
 
-                          {/* Adicionar Evolução */}
+                          {/* Adicionar Prontuário Médico */}
                           <button
                             onClick={() => onOpenEvolutionModal(p)}
                             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-600 transition flex items-center justify-center"
-                            title="Registrar Nova Evolução Clínica"
+                            title="Registrar Prontuário Médico"
                           >
                             <PlusCircle className="w-4 h-4" />
                           </button>

@@ -198,24 +198,30 @@ export default function PrintProntuario({ patient, onClose }) {
           </div>
         )}
 
-        {/* Bloco 4: Histórico de Evoluções Clínicas */}
+        {/* Bloco 4: Prontuário Médico e Evoluções Clínicas */}
         <div className="mb-8">
           <h2 className="text-[10px] font-bold uppercase tracking-wider text-slate-500 border-b border-slate-300 pb-1 mb-2.5">
-            4. Histórico de Evoluções Clínicas ({evolucoes.length})
+            4. Prontuário Médico & Evoluções Clínicas ({evolucoes.length})
           </h2>
 
           {evolucoes.length === 0 ? (
-            <p className="text-slate-500 italic p-3 text-xs">Nenhuma evolução registrada até o momento.</p>
+            <p className="text-slate-500 italic p-3 text-xs">Nenhum registro de prontuário médico adicionado até o momento.</p>
           ) : (
             <div className="space-y-3">
               {evolucoes.map((evo, idx) => (
                 <div key={evo.id || idx} className="border border-slate-300 rounded-lg p-3 space-y-1.5">
                   <div className="flex justify-between items-center text-[11px] border-b border-slate-200 pb-1 font-semibold text-slate-700">
                     <span>
-                      {formatarDataHoraBR(evo.dataHora)} • <strong className="text-blue-800">{evo.tipoAtendimento}</strong>
+                      {formatarDataHoraBR(evo.dataHora)} {evo.tipoAtendimento ? <>• <strong className="text-blue-800">{evo.tipoAtendimento}</strong></> : null}
                     </span>
-                    <span>{evo.profissional}</span>
+                    {evo.profissional && <span>{evo.profissional}</span>}
                   </div>
+
+                  {evo.descricaoDispositivo && (
+                    <div className="text-[11px] bg-indigo-50/60 p-2 rounded border border-indigo-200 text-indigo-950 font-medium">
+                      <strong>Descrição do Dispositivo:</strong> {evo.descricaoDispositivo}
+                    </div>
+                  )}
 
                   <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
                     {evo.descricao}

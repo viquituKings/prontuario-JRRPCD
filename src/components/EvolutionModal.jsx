@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { X, Calendar, UserCheck, Stethoscope, Save, FileText } from 'lucide-react';
-import { TIPOS_ATENDIMENTO } from '../types';
+import { X, Calendar, Stethoscope, Save, FileText, Accessibility } from 'lucide-react';
 
 export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   const getNowLocalIso = () => {
@@ -13,8 +12,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
 
   const [formData, setFormData] = useState({
     dataHora: getNowLocalIso(),
-    profissional: '',
-    tipoAtendimento: 'Avaliação Fisioterapêutica',
+    descricaoDispositivo: '',
     descricao: '',
     conduta: '',
   });
@@ -24,14 +22,23 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
 
   if (!isOpen || !patient) return null;
 
+  const opms = patient.opm_list || [];
+  const hasOpm = (opms.length > 0 && opms.some((o) => o.solicitada || o.tipo)) ||
+    Boolean(patient.tipoOpm && patient.tipoOpm.trim()) ||
+    patient.servico_especializado === 'OPM';
+
+  const opmNomes = opms.length > 0
+    ? opms.map((o) => `${o.tipo}: ${o.solicitada}`).join('; ')
+    : patient.tipoOpm || '';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.profissional.trim()) {
-      setErrorMsg('Informe o nome e conselho do profissional.');
+    if (hasOpm && !formData.descricaoDispositivo.trim()) {
+      setErrorMsg('Por favor, informe a descrição do dispositivo.');
       return;
     }
     if (!formData.descricao.trim()) {
-      setErrorMsg('Descreva a evolução do atendimento.');
+      setErrorMsg('Por favor, informe a descrição do prontuário médico.');
       return;
     }
 
@@ -41,7 +48,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
       await onSave(patient.id, formData);
       onClose();
     } catch (err) {
-      setErrorMsg('Erro ao salvar evolução: ' + (err.message || 'Erro desconhecido'));
+      setErrorMsg('Erro ao salvar prontuário médico: ' + (err.message || 'Erro desconhecido'));
     } finally {
       setIsSubmitting(false);
     }
@@ -56,10 +63,10 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
           <div>
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Stethoscope className="w-5 h-5" />
-              <span>Registrar Evolução Clínica</span>
+              <span>Prontuário Médico</span>
             </h2>
             <p className="text-xs text-teal-100">
-              Paciente: <strong className="text-white">{patient.nome}</strong> | OPM: {patient.tipoOpm || 'Geral'}
+              Paciente: <strong className="text-white">{patient.nome}</strong> {opmNomes ? `| OPM: ${opmNomes}` : ''}
             </p>
           </div>
           <button
@@ -78,64 +85,54 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {/* Data e Hora */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Data e Hora do Atendimento <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="datetime-local"
-                required
-                value={formData.dataHora}
-                onChange={(e) => setFormData({ ...formData, dataHora: e.target.value })}
-                className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-              />
-            </div>
-
-            {/* Tipo de Atendimento */}
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Tipo de Atendimento <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.tipoAtendimento}
-                onChange={(e) => setFormData({ ...formData, tipoAtendimento: e.target.value })}
-                className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
-              >
-                {TIPOS_ATENDIMENTO.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Profissional Responsável */}
+          {/* Data e Hora */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Profissional Responsável (Nome e Registro de Conselho) <span className="text-red-500">*</span>
+              Data e Hora do Atendimento <span className="text-red-500">*</span>
             </label>
             <input
-              type="text"
+              type="datetime-local"
               required
-              placeholder="Ex: Dra. Camila Rocha (Fisioterapeuta - CREFITO 12345/SP)"
-              value={formData.profissional}
-              onChange={(e) => setFormData({ ...formData, profissional: e.target.value })}
+              value={formData.dataHora}
+              onChange={(e) => setFormData({ ...formData, dataHora: e.target.value })}
               className="w-full text-sm rounded-lg border-slate-300 border px-3 py-2 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
             />
           </div>
 
-          {/* Descrição da Evolução */}
+          {/* Campo Descrição do Dispositivo (Exibido caso o paciente possua solicitação de OPMs) */}
+          {hasOpm && (
+            <div className="bg-indigo-50/70 border border-indigo-200 rounded-xl p-3.5 space-y-1.5">
+              <div className="flex flex-wrap items-center justify-between gap-1">
+                <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+                  <Accessibility className="w-4 h-4 text-indigo-600" />
+                  <span>Descrição do Dispositivo <span className="text-red-500">*</span></span>
+                </label>
+                {opmNomes && (
+                  <span className="text-[10px] font-semibold text-indigo-800 bg-white px-2 py-0.5 rounded border border-indigo-200 truncate max-w-[280px]">
+                    {opmNomes}
+                  </span>
+                )}
+              </div>
+              <textarea
+                rows={3}
+                required
+                placeholder="Descreva as características técnicas, modelo, medidas, ajustes, adaptações, estado do dispositivo ou prescrição técnica..."
+                value={formData.descricaoDispositivo}
+                onChange={(e) => setFormData({ ...formData, descricaoDispositivo: e.target.value })}
+                className="w-full text-xs rounded-lg border-indigo-200 border p-2.5 bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none resize-y text-slate-800 font-medium"
+              />
+            </div>
+          )}
+
+          {/* Descrição do Prontuário Médico */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Descrição da Evolução Clínica / Procedimento Realizado <span className="text-red-500">*</span>
+              Descrição do Prontuário Médico / Procedimento Realizado <span className="text-red-500">*</span>
             </label>
             <textarea
               rows={5}
               required
-              placeholder="Descreva detalhadamente o estado clínico, amplitude de movimento, condições do coto, provas, treino, queixas e testes realizados..."
+              placeholder="Descreva o estado clínico, evolução do paciente, exames, condições do coto, provas, queixas e testes realizados..."
               value={formData.descricao}
               onChange={(e) => setFormData({ ...formData, descricao: e.target.value })}
               className="w-full text-sm rounded-lg border-slate-300 border p-3 bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none resize-y"
@@ -145,7 +142,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
           {/* Conduta / Orientações */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Conduta Clínica, Orientações e Próximos Passos
+              Conduta Clínica, Orientações e Encaminhamentos
             </label>
             <textarea
               rows={3}
@@ -172,7 +169,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
               className="inline-flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-5 py-2 rounded-lg text-sm font-semibold shadow-sm transition disabled:opacity-50"
             >
               <Save className="w-4 h-4" />
-              <span>{isSubmitting ? 'Registrando...' : 'Registrar Evolução'}</span>
+              <span>{isSubmitting ? 'Salvando...' : 'Salvar Prontuário Médico'}</span>
             </button>
           </div>
         </form>
