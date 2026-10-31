@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   X, 
   Calendar, 
@@ -10,17 +10,18 @@ import {
   PlusCircle, 
   Trash2, 
   Save, 
-  Sparkles,
-  FileText,
-  Hospital,
-  Heart,
-  CreditCard,
-  CheckCircle,
-  CheckCircle2,
-  AlertCircle,
-  AlertTriangle,
-  Zap,
-  Info
+  Sparkles, 
+  FileText, 
+  Hospital, 
+  Heart, 
+  CreditCard, 
+  CheckCircle, 
+  CheckCircle2, 
+  AlertCircle, 
+  AlertTriangle, 
+  Zap, 
+  Info,
+  Search
 } from 'lucide-react';
 import FloatingSelectMenu from './FloatingSelectMenu';
 import CidAutocompleteInput from './CidAutocompleteInput';
@@ -37,11 +38,18 @@ import {
   formatarCPF,
   validarCPF,
   removerAcentos,
+  normalizarTexto,
   isMotorizadaSolicitada,
   verificarCompatibilidadeMotorizada
 } from '../types';
 
-export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdit }) {
+export default function PatientFormModal({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  patientToEdit,
+  existingPatients = []
+}) {
   const [formData, setFormData] = useState({
     data_entrada: getHojeBR(),
     nome: '',
@@ -61,6 +69,27 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [cpfValidationState, setCpfValidationState] = useState(null); // null | 'valid' | 'invalid'
+  const [linkedExistingPatient, setLinkedExistingPatient] = useState(null);
+
+  // Estados dos menus de autocomplete de Paciente e Mãe
+  const [showNameSuggestions, setShowNameSuggestions] = useState(false);
+  const [showMotherSuggestions, setShowMotherSuggestions] = useState(false);
+  const nameContainerRef = useRef(null);
+  const motherContainerRef = useRef(null);
+
+  // Fecha menus de autocomplete ao clicar fora
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (nameContainerRef.current && !nameContainerRef.current.contains(e.target)) {
+        setShowNameSuggestions(false);
+      }
+      if (motherContainerRef.current && !motherContainerRef.current.contains(e.target)) {
+        setShowMotherSuggestions(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (patientToEdit) {
@@ -101,6 +130,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
       } else {
         setCpfValidationState(null);
       }
+      setLinkedExistingPatient(patientToEdit);
     } else {
       setFormData({
         data_entrada: getHojeBR(),
@@ -118,9 +148,83 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         observacoes: ''
       });
       setCpfValidationState(null);
+      setLinkedExistingPatient(null);
     }
+    setShowNameSuggestions(false);
+    setShowMotherSuggestions(false);
     setErrorMsg('');
   }, [patientToEdit, isOpen]);
+
+  // Autocomplete: Busca pacientes existentes pelo Nome do Paciente
+  const nameQuery = normalizarTexto(formData.nome);
+  const matchingPatientsByName = useMemo(() => {
+    if (!nameQuery || nameQuery.length < 2) return [];
+    return existingPatients.filter((p) => {
+      if (patientToEdit && p.id === patientToEdit.id) return false;
+      const pNome = normalizarTexto(p.nome || '');
+      return pNome.includes(nameQuery);
+    }).slice(0, 8);
+  }, [nameQuery, existingPatients, patientToEdit]);
+
+  // Autocomplete: Busca pacientes existentes pelo Nome da Mãe
+  const motherQuery = normalizarTexto(formData.nome_mae);
+  const matchingPatientsByMother = useMemo(() => {
+    if (!motherQuery || motherQuery.length < 2) return [];
+    return existingPatients.filter((p) => {
+      if (patientToEdit && p.id === patientToEdit.id) return false;
+      const pMother = normalizarTexto(p.nome_mae || p.nomeMae || '');
+      return pMother.includes(motherQuery);
+    }).slice(0, 8);
+  }, [motherQuery, existingPatients, patientToEdit]);
+
+  // Autocompleta todos os dados do paciente selecionado no formulário
+  const handleAutofillFromPatient = (p) => {
+    const cleanCpf = p.cpf || '';
+    const dnVal = p.dn || p.dataNascimento || '';
+    const idadeVal = p.idade || (dnVal ? calcularIdade(dnVal) : '');
+
+    let initialCids = [''];
+    if (p.cid_list && Array.isArray(p.cid_list) && p.cid_list.length > 0) {
+      initialCids = p.cid_list;
+    } else if (p.cid) {
+      initialCids = p.cid.split(/[;,]/).map((c) => c.trim()).filter(Boolean);
+      if (initialCids.length === 0) initialCids = [''];
+    }
+
+    let initialOpms = [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }];
+    if (p.opm_list && Array.isArray(p.opm_list) && p.opm_list.length > 0) {
+      initialOpms = p.opm_list;
+    } else if (p.tipoOpm) {
+      initialOpms = [{ tipo: 'ÓRTESE', solicitada: p.tipoOpm }];
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      nome: removerAcentos(p.nome || ''),
+      nome_mae: removerAcentos(p.nome_mae || p.nomeMae || ''),
+      cpf: formatarCPF(cleanCpf),
+      dn: formatarMascaraData(dnVal),
+      idade: idadeVal,
+      telefone: p.telefone || '',
+      municipio: p.municipio || '',
+      esf: p.esf || p.esfReferencia || '',
+      cid_list: initialCids,
+      servico_especializado: p.servico_especializado || 'OPM',
+      opm_list: initialOpms,
+      observacoes: p.observacoes || p.prontuarioObservacoes || prev.observacoes
+    }));
+
+    const digits = cleanCpf.replace(/\D/g, '');
+    if (digits.length === 11) {
+      setCpfValidationState(validarCPF(cleanCpf) ? 'valid' : 'invalid');
+    } else {
+      setCpfValidationState(null);
+    }
+
+    setLinkedExistingPatient(p);
+    setShowNameSuggestions(false);
+    setShowMotherSuggestions(false);
+  };
 
   if (!isOpen) return null;
 
@@ -245,9 +349,12 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
 
       const joinedCid = cleanCidList.join('; ');
 
+      const targetId = patientToEdit?.id || linkedExistingPatient?.id;
+      const targetEvolucoes = patientToEdit?.evolucoes || linkedExistingPatient?.evolucoes || [];
+
       const payload = {
         ...formData,
-        id: patientToEdit?.id,
+        id: targetId,
         nome: removerAcentos(formData.nome),
         cpf: formData.cpf,
         nome_mae: removerAcentos(formData.nome_mae),
@@ -264,7 +371,7 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
         esfReferencia: formData.esf,
         tipoOpm: cleanOpmList.map((o) => `${o.tipo}: ${o.solicitada}`).join('; ') || formData.servico_especializado,
         prontuarioObservacoes: formData.observacoes,
-        evolucoes: patientToEdit?.evolucoes || []
+        evolucoes: targetEvolucoes
       };
 
       await onSave(payload);
@@ -316,6 +423,33 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           )}
 
+          {/* Banner de Dados Autocompletados do Banco */}
+          {linkedExistingPatient && !patientToEdit && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs animate-in fade-in">
+              <div className="flex items-start gap-2.5">
+                <div className="p-1.5 bg-blue-600 text-white rounded-xl shrink-0 mt-0.5">
+                  <Sparkles className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="font-bold text-blue-900">
+                    Dados autocompletados do cadastro de: <span className="underline">{linkedExistingPatient.nome}</span>
+                  </div>
+                  <div className="text-[11px] text-blue-700">
+                    Mãe: {linkedExistingPatient.nome_mae || linkedExistingPatient.nomeMae || '-'} • Todos os campos foram preenchidos e podem ser alterados.
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setLinkedExistingPatient(null)}
+                className="text-[11px] font-semibold text-slate-600 hover:text-slate-900 bg-white px-2.5 py-1 rounded-lg border border-slate-200 shadow-sm transition"
+                title="Salvar como um novo prontuário sem sobrescrever o cadastro existente"
+              >
+                Salvar como Novo Prontuário
+              </button>
+            </div>
+          )}
+
           {/* Bloco 1: Data de Entrada, Nome Completo e CPF */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-3.5">
             {/* Data de Entrada */}
@@ -333,19 +467,84 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
               />
             </div>
 
-            {/* Nome do Paciente */}
-            <div className="md:col-span-6">
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Nome do Paciente <span className="text-red-500">*</span>
+            {/* Nome do Paciente (com Autocomplete do banco de dados) */}
+            <div ref={nameContainerRef} className="md:col-span-6 relative">
+              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 flex items-center justify-between">
+                <span>Nome do Paciente <span className="text-red-500">*</span></span>
+                {matchingPatientsByName.length > 0 && showNameSuggestions && (
+                  <span className="text-[9px] text-blue-600 font-semibold bg-blue-50 px-1.5 py-0.2 rounded border border-blue-100 flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5" /> {matchingPatientsByName.length} no banco
+                  </span>
+                )}
               </label>
               <input
                 type="text"
                 required
                 placeholder="NOME COMPLETO DO PACIENTE"
                 value={formData.nome}
-                onChange={(e) => setFormData({ ...formData, nome: removerAcentos(e.target.value) })}
+                onChange={(e) => {
+                  const val = removerAcentos(e.target.value);
+                  setFormData((prev) => ({ ...prev, nome: val }));
+                  setShowNameSuggestions(val.trim().length >= 2);
+                }}
+                onFocus={() => {
+                  if (formData.nome.trim().length >= 2) {
+                    setShowNameSuggestions(true);
+                  }
+                }}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+                autoComplete="off"
               />
+
+              {/* Menu Flutuante de Autocomplete de Paciente */}
+              {showNameSuggestions && matchingPatientsByName.length > 0 && (
+                <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95">
+                  <div className="p-2.5 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between sticky top-0 bg-slate-50 z-10 border-b border-slate-200">
+                    <span className="flex items-center gap-1.5 text-blue-800">
+                      <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                      Pacientes Cadastrados ({matchingPatientsByName.length})
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowNameSuggestions(false)}
+                      className="text-slate-400 hover:text-slate-600 p-0.5 rounded"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  {matchingPatientsByName.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => handleAutofillFromPatient(p)}
+                      className="w-full text-left p-2.5 hover:bg-blue-50 transition flex items-start justify-between gap-2.5 group"
+                    >
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="font-bold text-xs text-slate-900 group-hover:text-blue-700 truncate flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                          <span>{p.nome}</span>
+                        </div>
+                        {(p.nome_mae || p.nomeMae) && (
+                          <div className="text-[11px] text-slate-600 font-medium truncate flex items-center gap-1">
+                            <Heart className="w-3 h-3 text-rose-500 shrink-0" />
+                            <span>Mãe: {p.nome_mae || p.nomeMae}</span>
+                          </div>
+                        )}
+                        <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          {p.cpf && <span className="font-mono text-slate-600 font-semibold">CPF: {p.cpf}</span>}
+                          {(p.dn || p.dataNascimento) && <span>DN: {p.dn || p.dataNascimento}</span>}
+                          {p.municipio && <span>• {p.municipio}</span>}
+                        </div>
+                      </div>
+
+                      <span className="px-2.5 py-1 bg-blue-100 text-blue-800 rounded-lg text-[10px] font-bold shrink-0 self-center group-hover:bg-blue-600 group-hover:text-white transition shadow-sm">
+                        Preencher
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* CPF (Não obrigatório, com validação) */}
@@ -381,20 +580,85 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
             </div>
           </div>
 
-          {/* Bloco 2: Nome da Mãe (Obrigatório) */}
-          <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80">
-            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <Heart className="w-3.5 h-3.5 text-rose-500" />
-              Nome da Mãe do Paciente <span className="text-red-500">*</span>
+          {/* Bloco 2: Nome da Mãe (com Autocomplete do banco de dados) */}
+          <div ref={motherContainerRef} className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200/80 relative">
+            <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1 flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                <Heart className="w-3.5 h-3.5 text-rose-500" />
+                Nome da Mãe do Paciente <span className="text-red-500">*</span>
+              </span>
+              {matchingPatientsByMother.length > 0 && showMotherSuggestions && (
+                <span className="text-[9px] text-rose-600 font-semibold bg-rose-50 px-1.5 py-0.2 rounded border border-rose-100 flex items-center gap-1">
+                  <Heart className="w-2.5 h-2.5" /> {matchingPatientsByMother.length} no banco
+                </span>
+              )}
             </label>
             <input
               type="text"
               required
               placeholder="NOME COMPLETO DA MÃE DO PACIENTE"
               value={formData.nome_mae}
-              onChange={(e) => setFormData({ ...formData, nome_mae: removerAcentos(e.target.value) })}
+              onChange={(e) => {
+                const val = removerAcentos(e.target.value);
+                setFormData((prev) => ({ ...prev, nome_mae: val }));
+                setShowMotherSuggestions(val.trim().length >= 2);
+              }}
+              onFocus={() => {
+                if (formData.nome_mae.trim().length >= 2) {
+                  setShowMotherSuggestions(true);
+                }
+              }}
               className="w-full bg-white border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-semibold uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+              autoComplete="off"
             />
+
+            {/* Menu Flutuante de Autocomplete de Mãe */}
+            {showMotherSuggestions && matchingPatientsByMother.length > 0 && (
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded-2xl shadow-2xl z-50 overflow-hidden divide-y divide-slate-100 max-h-64 overflow-y-auto animate-in fade-in zoom-in-95">
+                <div className="p-2.5 bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between sticky top-0 bg-slate-50 z-10 border-b border-slate-200">
+                  <span className="flex items-center gap-1.5 text-rose-800">
+                    <Heart className="w-3.5 h-3.5 text-rose-600" />
+                    Mães e Pacientes Cadastrados ({matchingPatientsByMother.length})
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowMotherSuggestions(false)}
+                    className="text-slate-400 hover:text-slate-600 p-0.5 rounded"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
+
+                {matchingPatientsByMother.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => handleAutofillFromPatient(p)}
+                    className="w-full text-left p-2.5 hover:bg-rose-50/70 transition flex items-start justify-between gap-2.5 group"
+                  >
+                    <div className="space-y-0.5 min-w-0">
+                      <div className="font-bold text-xs text-slate-900 group-hover:text-rose-700 truncate flex items-center gap-1.5">
+                        <Heart className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                        <span>Mãe: {p.nome_mae || p.nomeMae}</span>
+                      </div>
+                      <div className="text-[11px] text-slate-700 font-semibold truncate flex items-center gap-1">
+                        <User className="w-3 h-3 text-blue-600 shrink-0" />
+                        <span>Paciente: {p.nome}</span>
+                      </div>
+                      <div className="text-[10px] text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        {p.cpf && <span className="font-mono text-slate-600 font-semibold">CPF: {p.cpf}</span>}
+                        {(p.dn || p.dataNascimento) && <span>DN: {p.dn || p.dataNascimento}</span>}
+                        {p.municipio && <span>• {p.municipio}</span>}
+                      </div>
+                    </div>
+
+                    <span className="px-2.5 py-1 bg-rose-100 text-rose-800 rounded-lg text-[10px] font-bold shrink-0 self-center group-hover:bg-rose-600 group-hover:text-white transition shadow-sm">
+                      Preencher
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Bloco 3: DN, Idade e Telefone */}

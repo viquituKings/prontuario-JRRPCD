@@ -168,6 +168,7 @@ export default function App() {
         onClose={() => setIsFormOpen(false)}
         onSave={handleSavePatient}
         patientToEdit={patientToEdit}
+        existingPatients={pacientes}
       />
 
       <PatientDetailsModal
