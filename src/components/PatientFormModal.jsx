@@ -451,13 +451,13 @@ export default function PatientFormModal({ isOpen, onClose, onSave, patientToEdi
               onChange={(city) => setFormData({ ...formData, municipio: city })}
             />
 
-            {/* Menu Flutuante de ESFs */}
+            {/* Menu Flutuante de ESFs (Não obrigatório) */}
             <FloatingSelectMenu
-              label="ESF de Referência"
+              label="ESF de Referência (Opcional)"
               required={false}
               icon={Building2}
-              title="Unidades ESF / UBS da Região"
-              placeholder="Selecione ou digite a ESF / UBS..."
+              title="ESFs de Referência (67 Unidades)"
+              placeholder="Selecione ou digite a ESF..."
               value={formData.esf}
               options={ESFS_SUGERIDAS}
               onChange={(unit) => setFormData({ ...formData, esf: unit })}
