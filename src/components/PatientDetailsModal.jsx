@@ -455,7 +455,8 @@ export default function PatientDetailsModal({
                       )}
 
                       {/* Caso 3 / Texto da Evolução (apenas se não for OPM estruturado nem Intelectual) */}
-                      {evo.descricao && 
+                      {typeof evo.descricao === 'string' && 
+                       evo.descricao.trim() && 
                        !evo.opcaoIntelectual && 
                        !evo.descricao.startsWith('Dispositivo(s) Deferido(s):') && 
                        extrairDispositivosDeferidos(evo).length === 0 && (

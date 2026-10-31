@@ -50,7 +50,13 @@ export default function App() {
 
   // Inicializa a coleção de usuários garantindo que mariacecilia / 12345678 esteja disponível
   useEffect(() => {
-    inicializarUsuarios();
+    try {
+      inicializarUsuarios().catch((err) => {
+        console.warn('Aviso não-fatal ao inicializar usuários padrão:', err);
+      });
+    } catch (e) {
+      console.warn('Erro ao disparar inicialização:', e);
+    }
   }, []);
 
   // Assinatura em tempo real dos pacientes (apenas se autenticado)

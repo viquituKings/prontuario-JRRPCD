@@ -15,7 +15,7 @@ import {
   serverTimestamp 
 } from 'firebase/firestore';
 import { PACIENTES_DEMO } from './types';
-import { registrarAuditoria } from './auth';
+import { registrarAuditoria } from './audit';
 
 const STORAGE_KEY_CONFIG = 'jrrpcd_firebase_config';
 const STORAGE_KEY_LOCAL_DATA = 'jrrpcd_local_pacientes';

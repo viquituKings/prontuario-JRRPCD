@@ -12,10 +12,11 @@ import {
   limit 
 } from 'firebase/firestore';
 import { getDb } from './firebase';
+import { registrarAuditoria, listarAuditoria } from './audit';
+export { registrarAuditoria, listarAuditoria };
 
 const STORAGE_KEY_AUTH_USER = 'jrrpcd_usuario_logado';
 const STORAGE_KEY_LOCAL_USERS = 'jrrpcd_local_usuarios';
-const STORAGE_KEY_LOCAL_AUDIT = 'jrrpcd_local_auditoria';
 
 // Usuário Administrador Inicial Padrão
 export const USUARIO_ADMIN_PADRAO = {
@@ -73,97 +74,6 @@ function saveLocalUsers(users) {
   }
 }
 
-function getLocalAudit() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_LOCAL_AUDIT);
-    if (raw) return JSON.parse(raw);
-  } catch (e) {
-    console.warn('Erro ao ler auditoria local:', e);
-  }
-  return [];
-}
-
-function saveLocalAudit(auditLogs) {
-  try {
-    localStorage.setItem(STORAGE_KEY_LOCAL_AUDIT, JSON.stringify(auditLogs.slice(0, 500)));
-  } catch (e) {
-    console.warn('Erro ao salvar auditoria local:', e);
-  }
-}
-
-// ========================================================
-// AUDITORIA / CARIMBO DE AÇÕES
-// ========================================================
-
-/**
- * Registra um carimbo de ação no histórico de auditoria (Firestore ou Local)
- */
-export async function registrarAuditoria({
-  acao,
-  detalhes,
-  usuario,
-  pacienteId = '',
-  pacienteNome = ''
-}) {
-  const db = getDb();
-  const now = new Date();
-  const logItem = {
-    id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    acao, // 'LOGIN' | 'LOGOUT' | 'CADASTRO_PACIENTE' | 'ALTERACAO_PACIENTE' | 'EXCLUSAO_PACIENTE' | 'NOVO_PRONTUARIO' | 'EXCLUSAO_PRONTUARIO' | 'TROCA_SENHA' | 'CRIACAO_USUARIO' | 'EDICAO_USUARIO' | 'EXCLUSAO_USUARIO'
-    detalhes: detalhes || '',
-    usuarioUsername: usuario?.username || 'sistema',
-    usuarioNome: usuario?.nome || usuario?.username || 'Sistema',
-    usuarioRole: usuario?.role || 'operador',
-    pacienteId: pacienteId || '',
-    pacienteNome: pacienteNome || '',
-    dataHoraIso: now.toISOString(),
-    dataHoraFormatada: now.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
-  };
-
-  // Salva no Firestore se disponível
-  if (db) {
-    try {
-      const docRef = doc(db, 'auditoria', logItem.id);
-      await setDoc(docRef, logItem);
-    } catch (err) {
-      console.warn('Falha ao registrar auditoria no Firestore:', err);
-    }
-  }
-
-  // Sempre grava também localmente para consulta rápida
-  const locais = getLocalAudit();
-  locais.unshift(logItem);
-  saveLocalAudit(locais);
-
-  return logItem;
-}
-
-/**
- * Obtém logs recentes de auditoria
- */
-export async function listarAuditoria(limite = 100) {
-  const db = getDb();
-  if (db) {
-    try {
-      const q = query(collection(db, 'auditoria'), orderBy('dataHoraIso', 'desc'), limit(limite));
-      const snap = await getDocs(q);
-      if (!snap.empty) {
-        return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-      }
-    } catch (err) {
-      console.warn('Falha ao buscar auditoria no Firestore, usando local:', err);
-    }
-  }
-  return getLocalAudit().slice(0, limite);
-}
-
 // ========================================================
 // GERENCIAMENTO DE USUÁRIOS
 // ========================================================
@@ -172,33 +82,37 @@ export async function listarAuditoria(limite = 100) {
  * Inicializa a coleção de usuários garantindo que mariacecilia / 12345678 exista
  */
 export async function inicializarUsuarios() {
-  const db = getDb();
-  const senhaHash = await hashSenha(SENHA_ADMIN_PADRAO_TEXTO);
+  try {
+    const db = getDb();
+    const senhaHash = await hashSenha(SENHA_ADMIN_PADRAO_TEXTO);
 
-  const adminUser = {
-    ...USUARIO_ADMIN_PADRAO,
-    senhaHash
-  };
+    const adminUser = {
+      ...USUARIO_ADMIN_PADRAO,
+      senhaHash
+    };
 
-  if (db) {
-    try {
-      const docRef = doc(db, 'usuarios', USUARIO_ADMIN_PADRAO.username);
-      const snap = await getDoc(docRef);
-      if (!snap.exists()) {
-        await setDoc(docRef, adminUser);
-        console.log('Usuário administrador padrão criado no Firestore:', USUARIO_ADMIN_PADRAO.username);
+    if (db) {
+      try {
+        const docRef = doc(db, 'usuarios', USUARIO_ADMIN_PADRAO.username);
+        const snap = await getDoc(docRef);
+        if (!snap.exists()) {
+          await setDoc(docRef, adminUser);
+          console.log('Usuário administrador padrão criado no Firestore:', USUARIO_ADMIN_PADRAO.username);
+        }
+      } catch (err) {
+        console.warn('Aviso ao inicializar usuário no Firestore:', err);
       }
-    } catch (err) {
-      console.warn('Aviso ao inicializar usuário no Firestore:', err);
     }
-  }
 
-  // Garante também localmente
-  const locais = getLocalUsers();
-  const index = locais.findIndex((u) => u.username === USUARIO_ADMIN_PADRAO.username);
-  if (index === -1) {
-    locais.push(adminUser);
-    saveLocalUsers(locais);
+    // Garante também localmente
+    const locais = getLocalUsers();
+    const index = locais.findIndex((u) => u.username === USUARIO_ADMIN_PADRAO.username);
+    if (index === -1) {
+      locais.push(adminUser);
+      saveLocalUsers(locais);
+    }
+  } catch (err) {
+    console.warn('Aviso geral em inicializarUsuarios:', err);
   }
 }
 
@@ -304,7 +218,10 @@ export function getUsuarioLogado() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_AUTH_USER);
     if (raw) {
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && typeof parsed.username === 'string' && parsed.username.trim()) {
+        return parsed;
+      }
     }
   } catch (e) {
     console.warn('Erro ao ler usuário logado:', e);
