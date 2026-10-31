@@ -38,12 +38,6 @@ export default function LoginScreen({ onLoginSuccess }) {
     }
   };
 
-  const handleFillDemoAdmin = () => {
-    setUsername('mariacecilia');
-    setSenha('12345678');
-    setErrorMsg('');
-  };
-
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col justify-center items-center p-4 sm:p-6 relative overflow-hidden font-sans select-none">
       
@@ -150,28 +144,6 @@ export default function LoginScreen({ onLoginSuccess }) {
               )}
             </button>
 
-            {/* Caixa de Ajuda / Primeiro Acesso */}
-            <div className="pt-4 border-t border-slate-100">
-              <div className="p-3 bg-blue-50/70 border border-blue-200/80 rounded-2xl flex items-center justify-between text-xs">
-                <div>
-                  <span className="text-[10px] font-bold text-blue-900 uppercase tracking-wider block">
-                    Acesso Administrador Padrão:
-                  </span>
-                  <span className="text-slate-700 font-medium">
-                    Usuário: <strong className="text-blue-950 font-mono">mariacecilia</strong> • Senha: <strong className="text-blue-950 font-mono">12345678</strong>
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleFillDemoAdmin}
-                  className="px-2.5 py-1 bg-white hover:bg-blue-100 text-blue-700 font-bold text-[11px] rounded-lg border border-blue-300 shadow-2xs transition"
-                  title="Preencher credenciais de Maria Cecília"
-                >
-                  Preencher
-                </button>
-              </div>
-            </div>
-
           </form>
 
         </div>
@@ -187,3 +159,4 @@ export default function LoginScreen({ onLoginSuccess }) {
     </div>
   );
 }
+

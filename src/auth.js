@@ -488,16 +488,16 @@ export async function salvarUsuario(dadosUsuario, usuarioOperador) {
     createdAt: userExistente?.createdAt || agora
   };
 
+  // Salva no Firestore se disponível
   if (db) {
     try {
       await setDoc(doc(db, 'usuarios', cleanUsername), userPayload, { merge: true });
     } catch (err) {
-      console.error('Erro ao salvar usuário no Firestore:', err);
-      throw err;
+      console.warn('Aviso ao salvar usuário no Firestore (salvando local):', err);
     }
   }
 
-  // Atualiza local
+  // Atualiza local sempre para garantir persistência imediata
   const locais = getLocalUsers();
   const idx = locais.findIndex((u) => u.username.toLowerCase() === cleanUsername);
   if (idx >= 0) {
@@ -541,8 +541,7 @@ export async function excluirUsuario(username, usuarioOperador) {
     try {
       await deleteDoc(doc(db, 'usuarios', cleanUsername));
     } catch (err) {
-      console.error('Erro ao excluir usuário no Firestore:', err);
-      throw err;
+      console.warn('Aviso ao excluir usuário no Firestore:', err);
     }
   }
 
@@ -558,3 +557,4 @@ export async function excluirUsuario(username, usuarioOperador) {
 
   return { success: true };
 }
+
