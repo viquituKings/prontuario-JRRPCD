@@ -52,9 +52,13 @@ export default function LoginScreen({ onLoginSuccess }) {
           
           {/* Cabeçalho do Cartão */}
           <div className="px-8 pt-8 pb-6 bg-gradient-to-br from-blue-700 via-blue-800 to-indigo-900 text-white relative">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-white/10 backdrop-blur-md flex items-center justify-center text-white border border-white/20 shadow-inner">
-                <Activity className="w-6 h-6 text-cyan-300" />
+            <div className="flex items-center gap-3.5 mb-4">
+              <div className="w-14 h-14 rounded-2xl bg-white p-1 flex items-center justify-center border border-white/30 shadow-md shrink-0 overflow-hidden">
+                <img 
+                  src="/logo.jpg" 
+                  alt="Logo JRRPCD" 
+                  className="w-full h-full object-contain" 
+                />
               </div>
               <div>
                 <span className="inline-block px-2 py-0.5 rounded bg-white/20 text-[10px] font-bold uppercase tracking-wider text-cyan-200">

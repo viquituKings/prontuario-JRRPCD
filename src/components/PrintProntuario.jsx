@@ -53,16 +53,23 @@ export default function PrintProntuario({ patient, onClose }) {
       <div className="w-full max-w-4xl bg-white text-slate-900 p-8 sm:p-12 shadow-2xl rounded-b-xl border border-slate-200 min-h-[29.7cm] text-xs leading-normal">
         
         {/* Cabeçalho Institucional */}
-        <div className="border-b-2 border-slate-900 pb-4 mb-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-black tracking-wide text-slate-900 uppercase">
-              JRRPCD • PRONTUÁRIO CLÍNICO & GESTÃO DE OPM
-            </h1>
-            <p className="text-[11px] text-slate-600 font-medium">
-              Rede de Cuidados à Pessoa com Deficiência • Reabilitação e Tecnologia Assistiva
-            </p>
+        <div className="border-b-2 border-slate-900 pb-4 mb-5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <img 
+              src="/logo.jpg" 
+              alt="Logo JRRPCD" 
+              className="w-12 h-12 object-contain rounded-lg border border-slate-300 p-0.5"
+            />
+            <div>
+              <h1 className="text-lg font-black tracking-wide text-slate-900 uppercase">
+                JRRPCD • PRONTUÁRIO CLÍNICO & GESTÃO DE OPM
+              </h1>
+              <p className="text-[11px] text-slate-600 font-medium">
+                Rede de Cuidados à Pessoa com Deficiência • Reabilitação e Tecnologia Assistiva
+              </p>
+            </div>
           </div>
-          <div className="text-right text-[11px] text-slate-500">
+          <div className="text-right text-[11px] text-slate-500 shrink-0">
             <div>Emissão: {new Date().toLocaleDateString('pt-BR')}</div>
             <div className="font-bold text-slate-800 uppercase">Ficha Cadastral e Evoluções</div>
           </div>

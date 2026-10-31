@@ -83,8 +83,12 @@ export default function Header({
           
           {/* Logo e Título */}
           <div className="flex items-center space-x-3.5">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-              <Activity className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-xl overflow-hidden shadow-md border border-slate-200 bg-white flex items-center justify-center shrink-0">
+              <img 
+                src="/logo.jpg" 
+                alt="Logo JRRPCD" 
+                className="w-full h-full object-contain p-0.5" 
+              />
             </div>
             <div>
               <div className="flex items-center gap-2">
