@@ -98,3 +98,4 @@ export async function listarAuditoria(limite = 100) {
   }
   return getLocalAudit().slice(0, limite);
 }
+
