@@ -298,9 +298,9 @@ export default function PatientList({
                             Mãe: {p.nome_mae || p.nomeMae}
                           </div>
                         )}
-                        <div className="text-[10px] text-slate-400 font-normal flex items-center gap-1.5 mt-0.5">
+                        <div className="text-[10px] text-slate-400 font-normal flex items-center gap-1.5 mt-0.5 flex-wrap">
                           {p.cpf && <span className="font-mono bg-slate-100 px-1 py-0.2 rounded text-slate-600">CPF: {p.cpf}</span>}
-                          {p.telefone && <span>{p.telefone}</span>}
+                          {p.telefone && <span className="text-slate-500">{p.telefone}</span>}
                         </div>
                       </td>
 

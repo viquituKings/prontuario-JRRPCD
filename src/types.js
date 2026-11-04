@@ -353,19 +353,12 @@ export function getChaveIdentificacaoPaciente(p) {
 }
 
 /**
- * Retorna a lista de pacientes únicos a partir da relação total de registros
+ * Retorna a lista de pacientes únicos a partir da relação total de registros,
+ * consolidando dados (telefones, CIDs, serviços) via agruparPacientesPorPessoa.
  */
 export function extrairPacientesUnicos(pacientes = []) {
   if (!Array.isArray(pacientes)) return [];
-  const mapa = new Map();
-  for (const p of pacientes) {
-    if (!p) continue;
-    const chave = getChaveIdentificacaoPaciente(p);
-    if (!mapa.has(chave)) {
-      mapa.set(chave, p);
-    }
-  }
-  return Array.from(mapa.values());
+  return agruparPacientesPorPessoa(pacientes);
 }
 
 /**
@@ -421,6 +414,15 @@ export function agruparPacientesPorPessoa(pacientes = []) {
         cidsIniciais.push(...p.cid.split(/[;]/).map((c) => c.trim()).filter(Boolean));
       }
 
+      const telefonesIniciais = [];
+      if (Array.isArray(p.telefones)) {
+        telefonesIniciais.push(...p.telefones);
+      } else if (Array.isArray(p.telefone_list)) {
+        telefonesIniciais.push(...p.telefone_list);
+      } else if (typeof p.telefone === 'string' && p.telefone.trim()) {
+        telefonesIniciais.push(...p.telefone.split(/[;|\/]/).map((t) => t.trim()).filter(Boolean));
+      }
+
       const evolucoesIniciais = Array.isArray(p.evolucoes) ? [...p.evolucoes] : [];
 
       mapa.set(chave, {
@@ -432,6 +434,8 @@ export function agruparPacientesPorPessoa(pacientes = []) {
         servicos: [servicoInicial],
         opm_list: opmsIniciais,
         cid_list: Array.from(new Set(cidsIniciais)),
+        telefones: Array.from(new Set(telefonesIniciais)),
+        telefone_list: Array.from(new Set(telefonesIniciais)),
         evolucoes: evolucoesIniciais
       });
     } else {
@@ -512,6 +516,24 @@ export function agruparPacientesPorPessoa(pacientes = []) {
         }
       }
 
+      // Unifica telefones sem duplicatas
+      const novosTelefones = [];
+      if (Array.isArray(p.telefones)) {
+        novosTelefones.push(...p.telefones);
+      } else if (Array.isArray(p.telefone_list)) {
+        novosTelefones.push(...p.telefone_list);
+      } else if (typeof p.telefone === 'string' && p.telefone.trim()) {
+        novosTelefones.push(...p.telefone.split(/[;|\/]/).map((t) => t.trim()).filter(Boolean));
+      }
+      for (const nt of novosTelefones) {
+        const digitos = nt.replace(/\D/g, '');
+        if (!digitos) continue;
+        const jaExiste = existente.telefones.some((et) => et.replace(/\D/g, '') === digitos);
+        if (!jaExiste) {
+          existente.telefones.push(nt);
+        }
+      }
+
       // Completa dados cadastrais que possam estar em branco no registro primário
       if (!existente.cpf && p.cpf) existente.cpf = p.cpf;
       if (!existente.telefone && p.telefone) existente.telefone = p.telefone;
@@ -535,6 +557,10 @@ export function agruparPacientesPorPessoa(pacientes = []) {
 
     pac.cid = pac.cid_list.join('; ');
     pac.tipoOpm = pac.opm_list.map((o) => `${o.tipo}: ${o.solicitada}`).join('; ');
+    if (Array.isArray(pac.telefones) && pac.telefones.length > 0) {
+      pac.telefone = pac.telefones.join('; ');
+      pac.telefone_list = pac.telefones;
+    }
 
     return pac;
   });

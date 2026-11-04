@@ -54,8 +54,18 @@ export default function PatientDetailsModal({
   const hasMotorizada = isMotorizadaSolicitada(opms, patient.tipoOpm);
   const statusMotorizada = hasMotorizada ? verificarCompatibilidadeMotorizada(cidsList) : null;
 
-  const cleanPhone = patient.telefone ? patient.telefone.replace(/\D/g, '') : '';
-  const whatsappUrl = cleanPhone.length >= 10 ? `https://wa.me/55${cleanPhone}` : null;
+  const listaTelefones = useMemo(() => {
+    if (Array.isArray(patient.telefones) && patient.telefones.length > 0) {
+      return patient.telefones.filter(Boolean);
+    }
+    if (Array.isArray(patient.telefone_list) && patient.telefone_list.length > 0) {
+      return patient.telefone_list.filter(Boolean);
+    }
+    if (typeof patient.telefone === 'string' && patient.telefone.trim()) {
+      return patient.telefone.split(/[;|\/]/).map((t) => t.trim()).filter(Boolean);
+    }
+    return [];
+  }, [patient]);
 
   const badgeColor = getBadgeColorServico(servico);
 
@@ -146,24 +156,41 @@ export default function PatientDetailsModal({
             </div>
           </div>
 
-          {/* Telefone */}
+          {/* Telefone(s) */}
           <div>
-            <span className="text-slate-500 block font-medium">Telefone / Contato</span>
-            <div className="flex items-center gap-1.5 mt-0.5 font-semibold text-slate-800">
-              <Phone className="w-3.5 h-3.5 text-slate-400" />
-              <span>{patient.telefone || 'Não informado'}</span>
-              {whatsappUrl && (
-                <a
-                  href={whatsappUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Abrir no WhatsApp"
-                  className="text-emerald-600 hover:text-emerald-700 font-bold ml-1"
-                >
-                  (Zap)
-                </a>
-              )}
-            </div>
+            <span className="text-slate-500 block font-medium">
+              {listaTelefones.length > 1 ? `Telefones (${listaTelefones.length})` : 'Telefone / Contato'}
+            </span>
+            {listaTelefones.length === 0 ? (
+              <div className="flex items-center gap-1.5 mt-0.5 font-semibold text-slate-400">
+                <Phone className="w-3.5 h-3.5 text-slate-300" />
+                <span>Não informado</span>
+              </div>
+            ) : (
+              <div className="space-y-1 mt-0.5">
+                {listaTelefones.map((tel, idx) => {
+                  const clean = tel.replace(/\D/g, '');
+                  const waUrl = clean.length >= 10 ? `https://wa.me/55${clean}` : null;
+                  return (
+                    <div key={idx} className="flex items-center gap-1.5 font-semibold text-slate-800 text-xs">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                      <span>{tel}</span>
+                      {waUrl && (
+                        <a
+                          href={waUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          title={`Abrir ${tel} no WhatsApp`}
+                          className="inline-flex items-center text-[10px] bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold px-1.5 py-0.2 rounded border border-emerald-200 transition ml-1"
+                        >
+                          Zap
+                        </a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Município & ESF */}

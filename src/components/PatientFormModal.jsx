@@ -59,6 +59,7 @@ export default function PatientFormModal({
     dn: '',
     idade: '',
     telefone: '',
+    telefone_list: [''],
     municipio: '',
     esf: '',
     cid_list: [''],
@@ -106,6 +107,19 @@ export default function PatientFormModal({
         if (initialCids.length === 0) initialCids = [''];
       }
 
+      let initialTelefones = [''];
+      if (Array.isArray(patientToEdit.telefones) && patientToEdit.telefones.length > 0) {
+        initialTelefones = patientToEdit.telefones.map((t) => formatarTelefone(t)).filter(Boolean);
+      } else if (Array.isArray(patientToEdit.telefone_list) && patientToEdit.telefone_list.length > 0) {
+        initialTelefones = patientToEdit.telefone_list.map((t) => formatarTelefone(t)).filter(Boolean);
+      } else if (typeof patientToEdit.telefone === 'string' && patientToEdit.telefone.trim()) {
+        initialTelefones = patientToEdit.telefone
+          .split(/[;|\/]/)
+          .map((t) => formatarTelefone(t.trim()))
+          .filter(Boolean);
+      }
+      if (initialTelefones.length === 0) initialTelefones = [''];
+
       setFormData({
         data_entrada: patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(),
         nome: removerAcentos(patientToEdit.nome || ''),
@@ -113,7 +127,8 @@ export default function PatientFormModal({
         nome_mae: removerAcentos(patientToEdit.nome_mae || patientToEdit.nomeMae || ''),
         dn: patientToEdit.dn || patientToEdit.dataNascimento || '',
         idade: patientToEdit.idade || '',
-        telefone: patientToEdit.telefone || '',
+        telefone: initialTelefones.join('; '),
+        telefone_list: initialTelefones,
         municipio: patientToEdit.municipio || '',
         esf: patientToEdit.esf || patientToEdit.esfReferencia || '',
         cid_list: initialCids,
@@ -141,6 +156,7 @@ export default function PatientFormModal({
         dn: '',
         idade: '',
         telefone: '',
+        telefone_list: [''],
         municipio: '',
         esf: '',
         cid_list: [''],
@@ -197,6 +213,19 @@ export default function PatientFormModal({
       if (initialCids.length === 0) initialCids = [''];
     }
 
+    let autofillTelefones = [''];
+    if (Array.isArray(p.telefones) && p.telefones.length > 0) {
+      autofillTelefones = p.telefones.map((t) => formatarTelefone(t)).filter(Boolean);
+    } else if (Array.isArray(p.telefone_list) && p.telefone_list.length > 0) {
+      autofillTelefones = p.telefone_list.map((t) => formatarTelefone(t)).filter(Boolean);
+    } else if (typeof p.telefone === 'string' && p.telefone.trim()) {
+      autofillTelefones = p.telefone
+        .split(/[;|\/]/)
+        .map((t) => formatarTelefone(t.trim()))
+        .filter(Boolean);
+    }
+    if (autofillTelefones.length === 0) autofillTelefones = [''];
+
     setFormData((prev) => ({
       ...prev,
       nome: removerAcentos(p.nome || ''),
@@ -204,7 +233,8 @@ export default function PatientFormModal({
       cpf: formatarCPF(cleanCpf),
       dn: formatarMascaraData(dnVal),
       idade: idadeVal,
-      telefone: p.telefone || '',
+      telefone: autofillTelefones.join('; '),
+      telefone_list: autofillTelefones,
       municipio: p.municipio || '',
       esf: p.esf || p.esfReferencia || '',
       cid_list: initialCids,
@@ -280,6 +310,39 @@ export default function PatientFormModal({
     });
   };
 
+  // Funções para múltiplos telefones
+  const handleAddTelefone = () => {
+    setFormData((prev) => ({
+      ...prev,
+      telefone_list: [...(prev.telefone_list || []), '']
+    }));
+  };
+
+  const handleUpdateTelefone = (index, value) => {
+    const formatted = formatarTelefone(value);
+    setFormData((prev) => {
+      const updated = [...(prev.telefone_list || [''])];
+      updated[index] = formatted;
+      return {
+        ...prev,
+        telefone_list: updated,
+        telefone: updated.filter(Boolean).join('; ')
+      };
+    });
+  };
+
+  const handleRemoveTelefone = (index) => {
+    setFormData((prev) => {
+      const updated = (prev.telefone_list || ['']).filter((_, i) => i !== index);
+      const finalList = updated.length > 0 ? updated : [''];
+      return {
+        ...prev,
+        telefone_list: finalList,
+        telefone: finalList.filter(Boolean).join('; ')
+      };
+    });
+  };
+
   // Manipulação de lista dinâmica de OPMs
   const handleAddOpmField = () => {
     setFormData((prev) => ({
@@ -349,6 +412,12 @@ export default function PatientFormModal({
 
       const joinedCid = cleanCidList.join('; ');
 
+      // Telefones
+      const cleanTelefones = (formData.telefone_list || [])
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const joinedTelefone = cleanTelefones.join('; ');
+
       // O mesmo paciente pode solicitar mais de um OPM, e cada OPM deste deve gerar um novo registro
       if (formData.servico_especializado === 'OPM' && cleanOpmList.length > 0) {
         const payloads = cleanOpmList.map((opmItem, idx) => {
@@ -372,6 +441,9 @@ export default function PatientFormModal({
             esf: formData.esf.toUpperCase(),
             cid_list: cleanCidList,
             cid: joinedCid,
+            telefone: joinedTelefone,
+            telefones: cleanTelefones,
+            telefone_list: cleanTelefones,
             observacoes: formData.observacoes.toUpperCase(),
             opm_list: [opmItem],
             tipoOpm: `${opmItem.tipo}: ${opmItem.solicitada}`,
@@ -398,6 +470,9 @@ export default function PatientFormModal({
           esf: formData.esf.toUpperCase(),
           cid_list: cleanCidList,
           cid: joinedCid,
+          telefone: joinedTelefone,
+          telefones: cleanTelefones,
+          telefone_list: cleanTelefones,
           observacoes: formData.observacoes.toUpperCase(),
           opm_list: cleanOpmList,
           tipoOpm: cleanOpmList.map((o) => `${o.tipo}: ${o.solicitada}`).join('; '),
@@ -697,7 +772,7 @@ export default function PatientFormModal({
             )}
           </div>
 
-          {/* Bloco 3: DN, Idade e Telefone */}
+          {/* Bloco 3: DN, Idade e Telefones */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
@@ -727,17 +802,48 @@ export default function PatientFormModal({
               />
             </div>
 
-            <div>
-              <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">
-                Telefone / Contato
-              </label>
-              <input
-                type="text"
-                placeholder="(00) 00000-0000"
-                value={formData.telefone}
-                onChange={(e) => setFormData({ ...formData, telefone: formatarTelefone(e.target.value) })}
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
-              />
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  Telefone(s) / Contato
+                </label>
+                <button
+                  type="button"
+                  onClick={handleAddTelefone}
+                  className="text-[10px] font-bold text-blue-600 hover:text-blue-800 flex items-center gap-0.5 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded-lg border border-blue-200 transition"
+                  title="Adicionar outro número de telefone"
+                >
+                  <PlusCircle className="w-3 h-3" />
+                  <span>+ Adicionar</span>
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                {(formData.telefone_list || ['']).map((tel, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5">
+                    <div className="relative flex-1">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="(00) 00000-0000"
+                        value={tel}
+                        onChange={(e) => handleUpdateTelefone(idx, e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-2.5 py-2 text-xs uppercase focus:ring-2 focus:ring-blue-500 outline-none"
+                      />
+                    </div>
+                    {(formData.telefone_list || []).length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTelefone(idx)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition shrink-0"
+                        title="Remover este telefone"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
 
