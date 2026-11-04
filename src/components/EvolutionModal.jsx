@@ -37,7 +37,11 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   if (Array.isArray(patient?.opm_list)) {
     patient.opm_list.forEach((o) => {
       if (o?.solicitada && o.solicitada.trim()) {
-        opmsSolicitadasDoPaciente.push({ tipo: o.tipo, solicitada: o.solicitada.trim() });
+        opmsSolicitadasDoPaciente.push({ 
+          tipo: o.tipo, 
+          solicitada: o.solicitada.trim(),
+          data: o.data || patient?.data_entrada || patient?.dataEntrada || ''
+        });
       }
     });
   }
@@ -45,7 +49,11 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
     const cleanTipo = patient.tipoOpm.trim();
     const servicosIgnorados = ['opm', 'reab. intelectual', 'reab. fisica', 'reab. visual', 'reabilitação visual', 'neonato de risco'];
     if (!servicosIgnorados.includes(cleanTipo.toLowerCase())) {
-      opmsSolicitadasDoPaciente.push({ tipo: 'OPM', solicitada: cleanTipo });
+      opmsSolicitadasDoPaciente.push({ 
+        tipo: 'OPM', 
+        solicitada: cleanTipo,
+        data: patient?.data_entrada || patient?.dataEntrada || ''
+      });
     }
   }
 
@@ -321,7 +329,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
                       className="bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 shadow-2xs transition"
                       title="Clique para preencher como Dispositivo Deferido"
                     >
-                      + {item.solicitada}
+                      + {item.solicitada}{item.data ? ` (${item.data})` : ''}
                     </button>
                   ))}
                 </div>

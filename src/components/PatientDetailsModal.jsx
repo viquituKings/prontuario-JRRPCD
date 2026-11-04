@@ -280,15 +280,23 @@ export default function PatientDetailsModal({
                     {opms.map((o, idx) => (
                       <div
                         key={idx}
-                        className="px-3 py-2 bg-white rounded-xl border border-indigo-200 text-indigo-950 font-bold text-xs shadow-sm flex items-center gap-2"
+                        className="px-3 py-2 bg-white rounded-xl border border-indigo-200 text-indigo-950 font-bold text-xs shadow-sm flex items-center justify-between gap-2"
                       >
-                        <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-800 text-[10px] flex items-center justify-center shrink-0 font-bold">
-                          {idx + 1}
-                        </span>
-                        <div className="truncate">
-                          <span className="text-indigo-600 font-medium">{o.tipo}: </span>
-                          <span className="font-bold text-slate-900 uppercase">{o.solicitada}</span>
+                        <div className="flex items-center gap-2 truncate">
+                          <span className="w-5 h-5 rounded-md bg-indigo-100 text-indigo-800 text-[10px] flex items-center justify-center shrink-0 font-bold">
+                            {idx + 1}
+                          </span>
+                          <div className="truncate">
+                            <span className="text-indigo-600 font-medium">{o.tipo}: </span>
+                            <span className="font-bold text-slate-900 uppercase">{o.solicitada}</span>
+                          </div>
                         </div>
+                        {o.data && (
+                          <span className="text-[10px] font-semibold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg flex items-center gap-1 shrink-0">
+                            <Calendar className="w-3 h-3 text-indigo-500" />
+                            {o.data}
+                          </span>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -356,7 +356,7 @@ export default function PatientList({
                                 key={idx}
                                 className="inline-block bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[10px] font-semibold border border-blue-100"
                               >
-                                {o.tipo}: {o.solicitada}
+                                {o.tipo}: {o.solicitada}{o.data ? ` (${o.data})` : ''}
                               </span>
                             ))}
                           </div>

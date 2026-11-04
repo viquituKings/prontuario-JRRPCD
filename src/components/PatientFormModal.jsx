@@ -64,7 +64,7 @@ export default function PatientFormModal({
     esf: '',
     cid_list: [''],
     servico_especializado: 'OPM',
-    opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
+    opm_list: [{ tipo: 'CADEIRA DE RODAS', data: getHojeBR(), solicitada: '' }],
     observacoes: ''
   });
 
@@ -120,6 +120,21 @@ export default function PatientFormModal({
       }
       if (initialTelefones.length === 0) initialTelefones = [''];
 
+      let initialOpmList = [{ tipo: 'CADEIRA DE RODAS', data: patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(), solicitada: '' }];
+      if (patientToEdit.opm_list && Array.isArray(patientToEdit.opm_list) && patientToEdit.opm_list.length > 0) {
+        initialOpmList = patientToEdit.opm_list.map((o) => ({
+          tipo: o.tipo || 'CADEIRA DE RODAS',
+          data: o.data || patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(),
+          solicitada: o.solicitada || ''
+        }));
+      } else if (patientToEdit.tipoOpm) {
+        initialOpmList = [{
+          tipo: 'ÓRTESE',
+          data: patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(),
+          solicitada: patientToEdit.tipoOpm
+        }];
+      }
+
       setFormData({
         data_entrada: patientToEdit.data_entrada || patientToEdit.dataEntrada || getHojeBR(),
         nome: removerAcentos(patientToEdit.nome || ''),
@@ -133,11 +148,7 @@ export default function PatientFormModal({
         esf: patientToEdit.esf || patientToEdit.esfReferencia || '',
         cid_list: initialCids,
         servico_especializado: patientToEdit.servico_especializado || 'OPM',
-        opm_list: patientToEdit.opm_list && patientToEdit.opm_list.length > 0
-          ? patientToEdit.opm_list 
-          : patientToEdit.tipoOpm 
-          ? [{ tipo: 'ÓRTESE', solicitada: patientToEdit.tipoOpm }]
-          : [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
+        opm_list: initialOpmList,
         observacoes: patientToEdit.observacoes || patientToEdit.prontuarioObservacoes || ''
       });
 
@@ -161,7 +172,7 @@ export default function PatientFormModal({
         esf: '',
         cid_list: [''],
         servico_especializado: 'OPM',
-        opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
+        opm_list: [{ tipo: 'CADEIRA DE RODAS', data: getHojeBR(), solicitada: '' }],
         observacoes: ''
       });
       setCpfValidationState(null);
@@ -240,7 +251,7 @@ export default function PatientFormModal({
       cid_list: initialCids,
       servico_especializado: p.servico_especializado || 'OPM',
       // NÃO busca OPMs já solicitadas pelo paciente anteriormente (mantém limpo para novas solicitações)
-      opm_list: [{ tipo: 'CADEIRA DE RODAS', solicitada: '' }],
+      opm_list: [{ tipo: 'CADEIRA DE RODAS', data: prev.data_entrada || getHojeBR(), solicitada: '' }],
       observacoes: p.observacoes || p.prontuarioObservacoes || prev.observacoes
     }));
 
@@ -347,14 +358,24 @@ export default function PatientFormModal({
   const handleAddOpmField = () => {
     setFormData((prev) => ({
       ...prev,
-      opm_list: [...prev.opm_list, { tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', solicitada: '' }]
+      opm_list: [
+        ...prev.opm_list, 
+        { 
+          tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', 
+          data: prev.data_entrada || getHojeBR(), 
+          solicitada: '' 
+        }
+      ]
     }));
   };
 
   const handleUpdateOpmField = (index, field, value) => {
     setFormData((prev) => {
       const updated = [...prev.opm_list];
-      updated[index] = { ...updated[index], [field]: value.toUpperCase() };
+      const val = field === 'data' 
+        ? formatarMascaraData(value) 
+        : (field === 'tipo' ? value : value.toUpperCase());
+      updated[index] = { ...updated[index], [field]: val };
       return { ...prev, opm_list: updated };
     });
   };
@@ -362,7 +383,12 @@ export default function PatientFormModal({
   const handleRemoveOpmField = (index) => {
     setFormData((prev) => {
       const updated = prev.opm_list.filter((_, i) => i !== index);
-      return { ...prev, opm_list: updated.length > 0 ? updated : [{ tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', solicitada: '' }] };
+      return { 
+        ...prev, 
+        opm_list: updated.length > 0 
+          ? updated 
+          : [{ tipo: 'MEIO AUXILIAR DE LOCOMOÇÃO', data: prev.data_entrada || getHojeBR(), solicitada: '' }] 
+      };
     });
   };
 
@@ -407,7 +433,12 @@ export default function PatientFormModal({
 
       // Formata OPMs filtrando entradas vazias
       const cleanOpmList = formData.servico_especializado === 'OPM'
-        ? formData.opm_list.filter((o) => o.tipo && o.solicitada.trim())
+        ? formData.opm_list
+            .filter((o) => o.tipo && o.solicitada.trim())
+            .map((o) => ({
+              ...o,
+              data: o.data || formData.data_entrada || getHojeBR()
+            }))
         : [];
 
       const joinedCid = cleanCidList.join('; ');
@@ -430,6 +461,7 @@ export default function PatientFormModal({
             : (patientToEdit && idx === 0 ? patientToEdit.id : undefined);
           const targetId = existingId;
           const targetEvolucoes = idx === 0 ? (patientToEdit?.evolucoes || []) : [];
+          const opmData = opmItem.data || formData.data_entrada || getHojeBR();
 
           return {
             ...formData,
@@ -447,9 +479,11 @@ export default function PatientFormModal({
             observacoes: formData.observacoes.toUpperCase(),
             opm_list: [opmItem],
             tipoOpm: `${opmItem.tipo}: ${opmItem.solicitada}`,
+            data_entrada: opmData,
+            dataEntrada: opmData,
+            data_opm: opmData,
             // Compatibilidade legada
             nomeMae: removerAcentos(formData.nome_mae),
-            dataEntrada: formData.data_entrada,
             dataNascimento: formData.dn,
             esfReferencia: formData.esf,
             prontuarioObservacoes: formData.observacoes,
@@ -970,7 +1004,7 @@ export default function PatientFormModal({
                     className="grid grid-cols-1 md:grid-cols-12 gap-2 items-center bg-white p-3 rounded-xl border border-blue-200 shadow-sm"
                   >
                     {/* Tipo de OPM */}
-                    <div className="md:col-span-5">
+                    <div className="md:col-span-4">
                       <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-0.5">
                         Tipo de OPM
                       </label>
@@ -988,8 +1022,23 @@ export default function PatientFormModal({
                       </select>
                     </div>
 
+                    {/* Campo de Data ao lado do Tipo de OPM */}
+                    <div className="md:col-span-3">
+                      <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-0.5 flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-blue-600" />
+                        <span>Data OPM</span>
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="DD/MM/AAAA"
+                        value={opm.data || ''}
+                        onChange={(e) => handleUpdateOpmField(idx, 'data', e.target.value)}
+                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs uppercase focus:outline-none focus:ring-1 focus:ring-blue-500 font-medium"
+                      />
+                    </div>
+
                     {/* OPM Solicitada */}
-                    <div className="md:col-span-6">
+                    <div className="md:col-span-4">
                       <label className="block text-[10px] font-semibold text-slate-500 uppercase mb-0.5">
                         OPM Solicitada
                       </label>

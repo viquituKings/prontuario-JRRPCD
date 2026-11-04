@@ -396,14 +396,16 @@ export function agruparPacientesPorPessoa(pacientes = []) {
           if (o && (o.solicitada || o.tipo)) {
             opmsIniciais.push({
               tipo: o.tipo || 'OPM',
-              solicitada: (o.solicitada || '').trim()
+              solicitada: (o.solicitada || '').trim(),
+              data: o.data || p.data_entrada || p.dataEntrada || ''
             });
           }
         });
       } else if (p.tipoOpm) {
         opmsIniciais.push({
           tipo: 'OPM',
-          solicitada: p.tipoOpm.trim()
+          solicitada: p.tipoOpm.trim(),
+          data: p.data_entrada || p.dataEntrada || ''
         });
       }
 
@@ -471,7 +473,8 @@ export function agruparPacientesPorPessoa(pacientes = []) {
           if (o && (o.solicitada || o.tipo)) {
             const limpa = {
               tipo: o.tipo || 'OPM',
-              solicitada: (o.solicitada || '').trim()
+              solicitada: (o.solicitada || '').trim(),
+              data: o.data || p.data_entrada || p.dataEntrada || ''
             };
             const jaExiste = existente.opm_list.some(
               (item) => item.tipo === limpa.tipo && item.solicitada.toUpperCase() === limpa.solicitada.toUpperCase()
@@ -482,7 +485,11 @@ export function agruparPacientesPorPessoa(pacientes = []) {
           }
         });
       } else if (p.tipoOpm) {
-        const limpa = { tipo: 'OPM', solicitada: p.tipoOpm.trim() };
+        const limpa = { 
+          tipo: 'OPM', 
+          solicitada: p.tipoOpm.trim(),
+          data: p.data_entrada || p.dataEntrada || ''
+        };
         const jaExiste = existente.opm_list.some(
           (item) => item.solicitada.toUpperCase() === limpa.solicitada.toUpperCase()
         );
