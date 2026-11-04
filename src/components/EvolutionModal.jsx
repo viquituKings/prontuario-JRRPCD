@@ -24,8 +24,8 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   // Identificação do tipo de serviço do paciente
   const servico = patient?.servico_especializado || 'OPM';
 
-  // Regra fundamental: o preenchimento de dispositivos deferidos deve estar disponível
-  // EXCLUSIVAMENTE para pacientes com OPM solicitados
+  // Regra fundamental: o preenchimento de dispositivos deferidos está disponível
+  // para pacientes com OPM solicitada, porém o deferimento é OPCIONAL
   const hasOpmSolicitada = temOpmSolicitada(patient);
 
   const isOPM = hasOpmSolicitada;
@@ -50,16 +50,15 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   }
 
   const initialFormState = () => ({
-    // Data comum para todas as categorias de pacientes
+    // Data do trâmite
     data: getHojeIsoDate(),
-    // Observação comum para todas as categorias de pacientes
+    // Observações do trâmite
     observacao: '',
-    // Caso 1: Pacientes OPM (lista de dispositivo deferido + data)
+    // Dispositivos deferidos (sem campo de data individual, opcional)
     dispositivos: [{
-      dispositivo: (isOPM && opmsSolicitadasDoPaciente.length > 0) ? opmsSolicitadasDoPaciente[0].solicitada.toUpperCase() : '',
-      data: getHojeIsoDate()
+      dispositivo: ''
     }],
-    // Caso 2: Categoria Intelectual (CER II ou CRTEA)
+    // Categoria Intelectual (CER II ou CRTEA - opcional)
     opcaoIntelectual: ''
   });
 
@@ -82,38 +81,20 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
 
   if (!isOpen || !patient) return null;
 
-  // Atualização da data do prontuário
-  const handleDataChange = (novaData) => {
-    setFormData((prev) => {
-      // Para OPM: sincroniza a data dos dispositivos caso ainda não tenham sido alterados individualmente
-      const dispositivosAtualizados = prev.dispositivos.map((d) => {
-        if (!d.data || d.data === prev.data) {
-          return { ...d, data: novaData };
-        }
-        return d;
-      });
-      return {
-        ...prev,
-        data: novaData,
-        dispositivos: dispositivosAtualizados
-      };
-    });
-  };
-
-  // Manipulação dos dispositivos deferidos (Caso OPM)
+  // Manipulação dos dispositivos deferidos (Caso OPM - sem campo de data)
   const handleAddDispositivo = () => {
     setFormData((prev) => ({
       ...prev,
-      dispositivos: [...prev.dispositivos, { dispositivo: '', data: prev.data || getHojeIsoDate() }]
+      dispositivos: [...prev.dispositivos, { dispositivo: '' }]
     }));
   };
 
-  const handleUpdateDispositivo = (index, field, value) => {
+  const handleUpdateDispositivo = (index, value) => {
     setFormData((prev) => {
       const updated = [...prev.dispositivos];
       updated[index] = {
         ...updated[index],
-        [field]: field === 'dispositivo' ? value.toUpperCase() : value
+        dispositivo: value.toUpperCase()
       };
       return { ...prev, dispositivos: updated };
     });
@@ -124,9 +105,17 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
       const updated = prev.dispositivos.filter((_, i) => i !== index);
       return {
         ...prev,
-        dispositivos: updated.length > 0 ? updated : [{ dispositivo: '', data: prev.data || getHojeIsoDate() }]
+        dispositivos: updated.length > 0 ? updated : [{ dispositivo: '' }]
       };
     });
+  };
+
+  // Alterna opção da reabilitação intelectual (permite desmarcar)
+  const handleToggleIntelectual = (opcao) => {
+    setFormData((prev) => ({
+      ...prev,
+      opcaoIntelectual: prev.opcaoIntelectual === opcao ? '' : opcao
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -137,75 +126,83 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
       setErrorMsg('');
 
       if (!formData.data) {
-        setErrorMsg('Por favor, informe a Data do prontuário.');
+        setErrorMsg('Por favor, informe a Data do Trâmite.');
         setIsSubmitting(false);
         return;
       }
 
-      if (isOPM) {
-        // Validação Caso OPM
-        const cleanDispositivos = formData.dispositivos
-          .map((d) => ({ dispositivo: d.dispositivo.trim(), data: d.data || formData.data }))
-          .filter((d) => d.dispositivo);
+      const dataIso = formData.data ? `${formData.data}T12:00:00` : new Date().toISOString();
+      const obsTrim = formData.observacao.trim();
 
-        if (cleanDispositivos.length === 0) {
-          setErrorMsg('Por favor, informe ao menos um dispositivo deferido e sua data.');
+      if (isOPM) {
+        // Validação Caso OPM: deferimento é opcional
+        const cleanDispositivos = formData.dispositivos
+          .map((d) => (d.dispositivo || '').trim())
+          .filter(Boolean)
+          .map((disp) => ({
+            dispositivo: disp,
+            data: formData.data
+          }));
+
+        // Deve haver ao menos uma observação OU ao menos um dispositivo deferido
+        if (cleanDispositivos.length === 0 && !obsTrim) {
+          setErrorMsg('Por favor, informe ao menos uma observação ou insira o dispositivo deferido.');
           setIsSubmitting(false);
           return;
         }
 
-        const dataIso = formData.data ? `${formData.data}T12:00:00` : new Date().toISOString();
-        const obsTrim = formData.observacao.trim();
-
         const payload = {
-          tipoRegistro: 'OPM',
+          tipoRegistro: cleanDispositivos.length > 0 ? 'OPM' : 'Evolucao',
           categoriaServico: 'OPM',
           dispositivosDeferidos: cleanDispositivos,
           dispositivoDeferido: cleanDispositivos.map((d) => d.dispositivo).join('; '),
           data: formData.data,
           dataHora: dataIso,
           observacao: obsTrim,
-          descricaoDispositivo: cleanDispositivos.map((d) => `${d.dispositivo} (Deferido em: ${formatarDataBR(d.data)})`).join('; '),
-          descricao: obsTrim
-            ? `Dispositivo(s) Deferido(s): ${cleanDispositivos.map((d) => `${d.dispositivo} (${formatarDataBR(d.data)})`).join('; ')}\nObservação: ${obsTrim}`
-            : `Dispositivo(s) Deferido(s): ${cleanDispositivos.map((d) => `${d.dispositivo} (${formatarDataBR(d.data)})`).join('; ')}`
+          descricaoDispositivo: cleanDispositivos.length > 0
+            ? cleanDispositivos.map((d) => `${d.dispositivo} (Deferido em: ${formatarDataBR(formData.data)})`).join('; ')
+            : '',
+          descricao: cleanDispositivos.length > 0
+            ? (obsTrim
+                ? `Dispositivo(s) Deferido(s): ${cleanDispositivos.map((d) => `${d.dispositivo} (${formatarDataBR(formData.data)})`).join('; ')}\nObservação: ${obsTrim}`
+                : `Dispositivo(s) Deferido(s): ${cleanDispositivos.map((d) => `${d.dispositivo} (${formatarDataBR(formData.data)})`).join('; ')}`)
+            : obsTrim
         };
 
         await onSave(patient.id, payload);
       } else if (isIntelectual) {
-        // Validação Caso Intelectual
-        if (!formData.opcaoIntelectual) {
-          setErrorMsg('Por favor, selecione uma das opções: CER II ou (CRTEA).');
+        // Validação Caso Intelectual: modalidade é opcional
+        const opcao = formData.opcaoIntelectual;
+
+        // Deve haver ao menos uma observação OU seleção de modalidade
+        if (!opcao && !obsTrim) {
+          setErrorMsg('Por favor, informe ao menos uma observação ou selecione uma modalidade (CER II / CRTEA).');
           setIsSubmitting(false);
           return;
         }
 
-        const dataIso = formData.data ? `${formData.data}T12:00:00` : new Date().toISOString();
-        const obsTrim = formData.observacao.trim();
-
         const payload = {
-          tipoRegistro: 'Intelectual',
+          tipoRegistro: opcao ? 'Intelectual' : 'Evolucao',
           categoriaServico: 'Reab. Intelectual',
-          opcaoIntelectual: formData.opcaoIntelectual,
+          opcaoIntelectual: opcao || '',
           data: formData.data,
           dataHora: dataIso,
           observacao: obsTrim,
-          descricao: obsTrim
-            ? `Encaminhamento / Modalidade: ${formData.opcaoIntelectual}\nObservação: ${obsTrim}`
-            : `Encaminhamento / Modalidade: ${formData.opcaoIntelectual}`
+          descricao: opcao
+            ? (obsTrim
+                ? `Encaminhamento / Modalidade: ${opcao}\nObservação: ${obsTrim}`
+                : `Encaminhamento / Modalidade: ${opcao}`)
+            : obsTrim
         };
 
         await onSave(patient.id, payload);
       } else {
         // Validação Caso Reabilitação Física, Visual e Neonato de Risco
-        const obsTrim = formData.observacao.trim();
         if (!obsTrim) {
-          setErrorMsg('Por favor, preencha o campo Observação.');
+          setErrorMsg('Por favor, preencha o campo Observações.');
           setIsSubmitting(false);
           return;
         }
-
-        const dataIso = formData.data ? `${formData.data}T12:00:00` : new Date().toISOString();
 
         const payload = {
           tipoRegistro: 'Evolucao',
@@ -272,50 +269,36 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
             </div>
           )}
 
-          {/* Campo Data - Comum a todas as categorias */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-teal-600" />
-              <span>Data <span className="text-red-500">*</span></span>
-            </label>
-            <input
-              type="date"
-              required
-              value={formData.data}
-              onChange={(e) => handleDataChange(e.target.value)}
-              className="w-full text-xs font-bold bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none"
-            />
-          </div>
-
           {/* ========================================================================= */}
-          {/* CASO 1: PACIENTES COM OPM (Dispositivos Deferidos) */}
+          {/* CASO 1: PACIENTES COM OPM (Dispositivos Deferidos - Opcional e sem campo Data) */}
           {/* ========================================================================= */}
           {isOPM && (
-            <div className="space-y-3.5 pt-1">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+            <div className="space-y-3 p-4 bg-indigo-50/40 border border-indigo-100 rounded-2xl">
+              <div className="flex items-center justify-between border-b border-indigo-100/80 pb-2">
                 <div>
                   <h3 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                     <Accessibility className="w-4 h-4 text-indigo-600" />
                     <span>Dispositivos Deferidos</span>
+                    <span className="text-[10px] text-indigo-600/80 font-normal lowercase">(opcional)</span>
                   </h3>
                   <p className="text-[11px] text-slate-500">
-                    Cadastre o dispositivo deferido e a data correspondente.
+                    Preencha apenas caso haja deferimento de dispositivo neste atendimento.
                   </p>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleAddDispositivo}
-                  className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-200 shadow-sm transition hover:scale-[1.02]"
+                  className="inline-flex items-center gap-1 text-xs font-bold text-indigo-700 hover:text-indigo-900 bg-white hover:bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200 shadow-2xs transition hover:scale-[1.02]"
                 >
                   <PlusCircle className="w-3.5 h-3.5" />
-                  <span>Adicionar Outro Dispositivo</span>
+                  <span>Adicionar Dispositivo</span>
                 </button>
               </div>
 
               {/* Destaque das OPMs solicitadas no cadastro do paciente */}
               {opmsSolicitadasDoPaciente.length > 0 && (
-                <div className="bg-indigo-50/80 border border-indigo-200 p-2.5 rounded-xl text-xs flex flex-wrap items-center gap-2">
+                <div className="bg-white border border-indigo-200 p-2.5 rounded-xl text-xs flex flex-wrap items-center gap-2">
                   <span className="text-[11px] font-bold text-indigo-900">
                     OPM(s) Solicitada(s) no cadastro:
                   </span>
@@ -330,12 +313,12 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
                           if (emptyIdx !== -1) {
                             list[emptyIdx] = { ...list[emptyIdx], dispositivo: item.solicitada.toUpperCase() };
                           } else {
-                            list.push({ dispositivo: item.solicitada.toUpperCase(), data: prev.data || getHojeIsoDate() });
+                            list.push({ dispositivo: item.solicitada.toUpperCase() });
                           }
                           return { ...prev, dispositivos: list };
                         });
                       }}
-                      className="bg-white hover:bg-indigo-600 hover:text-white text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-300 shadow-2xs transition"
+                      className="bg-indigo-50 hover:bg-indigo-600 hover:text-white text-indigo-800 text-[11px] font-bold px-2.5 py-1 rounded-lg border border-indigo-200 shadow-2xs transition"
                       title="Clique para preencher como Dispositivo Deferido"
                     >
                       + {item.solicitada}
@@ -344,25 +327,23 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
                 </div>
               )}
 
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {formData.dispositivos.map((item, idx) => (
                   <div
                     key={idx}
-                    className="grid grid-cols-1 md:grid-cols-12 gap-3 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl items-end relative shadow-sm"
+                    className="flex items-center gap-2 p-3 bg-white border border-indigo-200/80 rounded-xl relative shadow-2xs"
                   >
-                    {/* Dispositivo Deferido */}
-                    <div className="md:col-span-7">
+                    <div className="flex-1">
                       <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                        Dispositivo Deferido {formData.dispositivos.length > 1 && `#${idx + 1}`} <span className="text-red-500">*</span>
+                        Dispositivo Deferido {formData.dispositivos.length > 1 && `#${idx + 1}`}
                       </label>
                       <input
                         type="text"
-                        required
                         list={`sugestoes-opm-${idx}`}
                         placeholder="EX: CADEIRA DE RODAS MOTORIZADA..."
                         value={item.dispositivo}
-                        onChange={(e) => handleUpdateDispositivo(idx, 'dispositivo', e.target.value)}
-                        className="w-full text-xs font-bold uppercase bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
+                        onChange={(e) => handleUpdateDispositivo(idx, e.target.value)}
+                        className="w-full text-xs font-bold uppercase bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none"
                       />
                       <datalist id={`sugestoes-opm-${idx}`}>
                         {OPMS_SUGERIDAS.map((s) => (
@@ -371,23 +352,8 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
                       </datalist>
                     </div>
 
-                    {/* Data */}
-                    <div className={formData.dispositivos.length > 1 ? "md:col-span-4" : "md:col-span-5"}>
-                      <label className="block text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1">
-                        Data <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="date"
-                        required
-                        value={item.data}
-                        onChange={(e) => handleUpdateDispositivo(idx, 'data', e.target.value)}
-                        className="w-full text-xs font-semibold bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:ring-2 focus:ring-indigo-500 outline-none"
-                      />
-                    </div>
-
-                    {/* Botão Remover Dispositivo (se houver mais de 1) */}
                     {formData.dispositivos.length > 1 && (
-                      <div className="md:col-span-1 flex justify-end pb-1">
+                      <div className="self-end pb-0.5">
                         <button
                           type="button"
                           onClick={() => handleRemoveDispositivo(idx)}
@@ -405,88 +371,124 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
           )}
 
           {/* ========================================================================= */}
-          {/* CASO 2: CATEGORIA INTELECTUAL (Radio buttons: CER II e (CRTEA)) */}
+          {/* CASO 2: CATEGORIA INTELECTUAL (CER II ou CRTEA - Opcional) */}
           {/* ========================================================================= */}
           {isIntelectual && (
             <div className="p-4 bg-purple-50/60 border border-purple-200 rounded-2xl space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-purple-950 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <Brain className="w-4 h-4 text-purple-600" />
-                  <span>Encaminhamento / Modalidade <span className="text-red-500">*</span></span>
-                </label>
-                <p className="text-[11px] text-purple-700">
-                  Selecione a modalidade de atendimento para este paciente:
-                </p>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="block text-xs font-bold text-purple-950 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <Brain className="w-4 h-4 text-purple-600" />
+                    <span>Encaminhamento / Modalidade</span>
+                    <span className="text-[10px] text-purple-700 font-normal lowercase">(opcional)</span>
+                  </label>
+                  <p className="text-[11px] text-purple-700">
+                    Caso definido neste atendimento, selecione a modalidade:
+                  </p>
+                </div>
+                {formData.opcaoIntelectual && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData({ ...formData, opcaoIntelectual: '' })}
+                    className="text-[10px] font-bold text-purple-700 hover:text-purple-900 bg-white hover:bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-200 transition"
+                  >
+                    Limpar Seleção
+                  </button>
+                )}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                 {/* Opção CER II */}
-                <label className={`p-3.5 rounded-2xl border-2 flex items-center gap-3 cursor-pointer transition select-none ${
-                  formData.opcaoIntelectual === 'CER II'
-                    ? 'border-purple-600 bg-white shadow-md ring-2 ring-purple-500/20 text-purple-950'
-                    : 'border-purple-200/80 bg-white/70 hover:bg-white text-slate-700 hover:border-purple-300'
-                }`}>
+                <div
+                  onClick={() => handleToggleIntelectual('CER II')}
+                  className={`p-3.5 rounded-2xl border-2 flex items-center gap-3 cursor-pointer transition select-none ${
+                    formData.opcaoIntelectual === 'CER II'
+                      ? 'border-purple-600 bg-white shadow-md ring-2 ring-purple-500/20 text-purple-950'
+                      : 'border-purple-200/80 bg-white/70 hover:bg-white text-slate-700 hover:border-purple-300'
+                  }`}
+                >
                   <input
                     type="radio"
                     name="opcaoIntelectual"
                     value="CER II"
                     checked={formData.opcaoIntelectual === 'CER II'}
-                    onChange={(e) => setFormData({ ...formData, opcaoIntelectual: e.target.value })}
+                    onChange={() => handleToggleIntelectual('CER II')}
                     className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                   />
                   <div>
                     <span className="block text-sm font-black text-purple-950 tracking-wide">CER II</span>
                     <span className="text-[11px] text-slate-500 block">Centro Especializado em Reabilitação</span>
                   </div>
-                </label>
+                </div>
 
                 {/* Opção (CRTEA) */}
-                <label className={`p-3.5 rounded-2xl border-2 flex items-center gap-3 cursor-pointer transition select-none ${
-                  formData.opcaoIntelectual === 'CRTEA'
-                    ? 'border-purple-600 bg-white shadow-md ring-2 ring-purple-500/20 text-purple-950'
-                    : 'border-purple-200/80 bg-white/70 hover:bg-white text-slate-700 hover:border-purple-300'
-                }`}>
+                <div
+                  onClick={() => handleToggleIntelectual('CRTEA')}
+                  className={`p-3.5 rounded-2xl border-2 flex items-center gap-3 cursor-pointer transition select-none ${
+                    formData.opcaoIntelectual === 'CRTEA'
+                      ? 'border-purple-600 bg-white shadow-md ring-2 ring-purple-500/20 text-purple-950'
+                      : 'border-purple-200/80 bg-white/70 hover:bg-white text-slate-700 hover:border-purple-300'
+                  }`}
+                >
                   <input
                     type="radio"
                     name="opcaoIntelectual"
                     value="CRTEA"
                     checked={formData.opcaoIntelectual === 'CRTEA'}
-                    onChange={(e) => setFormData({ ...formData, opcaoIntelectual: e.target.value })}
+                    onChange={() => handleToggleIntelectual('CRTEA')}
                     className="w-4 h-4 text-purple-600 focus:ring-purple-500"
                   />
                   <div>
                     <span className="block text-sm font-black text-purple-950 tracking-wide">(CRTEA)</span>
                     <span className="text-[11px] text-slate-500 block">Centro de Referência em TEA</span>
                   </div>
-                </label>
+                </div>
               </div>
             </div>
           )}
 
           {/* ========================================================================= */}
-          {/* CAMPO OBSERVAÇÃO - Visível para todas as categorias (incluindo OPM) */}
+          {/* SEÇÃO INTEGRADA: DATA DO TRÂMITE & OBSERVAÇÕES (Juntos no mesmo bloco) */}
           {/* ========================================================================= */}
-          <div>
-            <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5 text-teal-600" />
-              <span>
-                Observação {isFisicaVisualNeonato && <span className="text-red-500">*</span>}
-              </span>
-            </label>
-            <textarea
-              rows={isFisicaVisualNeonato ? 5 : 3}
-              required={isFisicaVisualNeonato}
-              placeholder={
-                isOPM
-                  ? "Observações clínicas, justificativas, laudos complementares ou detalhes sobre os dispositivos deferidos..."
-                  : isIntelectual
-                    ? "Observações clínicas, prioridade, encaminhamentos ou anotações..."
-                    : "Descreva detalhadamente a evolução clínica, atendimento, procedimentos realizados e observações..."
-              }
-              value={formData.observacao}
-              onChange={(e) => setFormData({ ...formData, observacao: e.target.value })}
-              className="w-full text-xs rounded-xl border-slate-300 border p-3.5 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-teal-500 outline-none resize-y text-slate-800 leading-relaxed font-medium"
-            />
+          <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3.5">
+            {/* Data do Trâmite */}
+            <div>
+              <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-teal-600" />
+                <span>Data do Trâmite <span className="text-red-500">*</span></span>
+              </label>
+              <input
+                type="date"
+                required
+                value={formData.data}
+                onChange={(e) => setFormData({ ...formData, data: e.target.value })}
+                className="w-full sm:w-56 text-xs font-bold bg-white border border-slate-300 rounded-xl px-3 py-2 text-slate-800 focus:ring-2 focus:ring-teal-500 outline-none shadow-2xs"
+              />
+            </div>
+
+            {/* Observações */}
+            <div>
+              <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                <FileText className="w-3.5 h-3.5 text-teal-600" />
+                <span>
+                  Observações {isFisicaVisualNeonato && <span className="text-red-500">*</span>}
+                </span>
+              </label>
+              <textarea
+                rows={isFisicaVisualNeonato ? 5 : 3}
+                required={isFisicaVisualNeonato}
+                placeholder={
+                  isOPM
+                    ? "Observações do trâmite, justificativas clínicas, laudos ou anotações..."
+                    : isIntelectual
+                      ? "Observações do trâmite, encaminhamentos ou anotações clínicas..."
+                      : "Descreva detalhadamente a evolução clínica, atendimento, procedimentos realizados e observações..."
+                }
+                value={formData.observacao}
+                onChange={(e) => setFormData({ ...formData, observacao: e.target.value })}
+                className="w-full text-xs rounded-xl border-slate-300 border p-3.5 bg-white focus:ring-2 focus:ring-teal-500 outline-none resize-y text-slate-800 leading-relaxed font-medium shadow-2xs"
+              />
+            </div>
           </div>
 
           {/* Rodapé com Ações */}
