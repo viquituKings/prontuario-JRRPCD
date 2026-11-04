@@ -62,7 +62,7 @@ export const OPMS_SUGERIDAS = [
 // CIDs oficiais compatíveis com a concessão de Cadeira de Rodas Motorizada (Protocolo SUS)
 export const CIDS_MOTORIZADA_COMPATIVEIS = [
   'B91', 'E849', 'G112', 'G118', 'G120', 'G121', 'G122', 'G128', 'G129',
-  'G35', 'G379', 'G6229', 'G710', 'G712', 'G729', 'G800', 'G803',
+  'G35', 'G379', 'G629', 'G710', 'G712', 'G729', 'G800', 'G803',
   'G810', 'G811', 'G819', 'G823', 'G824', 'G825', 'I694',
   'Q051', 'Q052', 'Q056', 'Q743', 'Q748', 'Q780', 'T093', 'Z899'
 ];
@@ -79,7 +79,7 @@ export const CIDS_MOTORIZADA_FORMATADOS = [
   'G12.9 (Atrofia muscular espinal NE)',
   'G35 (Esclerose múltipla)',
   'G37.9 (Doença desmielinizante do SNC)',
-  'G62.29 (Polineuropatia tóxica)',
+  'G62.9 (Polineuropatia não especificada)',
   'G71.0 (Distrofia muscular)',
   'G71.2 (Miopatias congênitas)',
   'G72.9 (Miopatia NE)',

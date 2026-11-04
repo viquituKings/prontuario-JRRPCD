@@ -959,7 +959,7 @@ export default function PatientFormModal({
                         CIDs compatíveis segundo protocolo (32 CIDs):
                       </span>
                       <div className="font-mono text-[9px] bg-white p-2 rounded-xl border border-amber-200 leading-relaxed text-slate-700 max-h-24 overflow-y-auto">
-                        B91, E84.9, G11.2, G11.8, G12.0, G12.1, G12.2, G12.8, G12.9, G35, G37.9, G62.29, G71.0, G71.2, G72.9, G80.0, G80.3, G81.0, G81.1, G81.9, G82.3, G82.4, G82.5, I69.4, Q05.1, Q05.2, Q05.6, Q74.3, Q74.8, Q78.0, T09.3, Z89.9
+                        B91, E84.9, G11.2, G11.8, G12.0, G12.1, G12.2, G12.8, G12.9, G35, G37.9, G62.9, G71.0, G71.2, G72.9, G80.0, G80.3, G81.0, G81.1, G81.9, G82.3, G82.4, G82.5, I69.4, Q05.1, Q05.2, Q05.6, Q74.3, Q74.8, Q78.0, T09.3, Z89.9
                       </div>
                     </div>
                   </div>
