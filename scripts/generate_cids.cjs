@@ -232,3 +232,4 @@ for (const tc of testCodes) {
   console.log(` - ${tc}: ${found ? '✓ ' + found : '❌ NÃO ENCONTRADO'}`);
 }
 console.log('=== Concluído com sucesso! ===');
+

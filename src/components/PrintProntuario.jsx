@@ -274,15 +274,26 @@ export default function PrintProntuario({ patient, onClose }) {
                     </div>
                   )}
 
-                  {/* Caso 3 / Texto da Evolução */}
-                  {evo.descricao && 
-                   !evo.opcaoIntelectual && 
-                   !evo.descricao.startsWith('Dispositivo(s) Deferido(s):') && 
-                   extrairDispositivosDeferidos(evo).length === 0 && (
-                    <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed">
-                      {evo.descricao}
-                    </p>
-                  )}
+                  {/* Observação / Evolução Clínica (Exibida para todas as categorias quando houver texto) */}
+                  {(() => {
+                    let obsTexto = (evo.observacao || '').trim();
+                    const descTexto = (typeof evo.descricao === 'string' ? evo.descricao : '').trim();
+                    if (!obsTexto && descTexto.includes('Observação:')) {
+                      obsTexto = descTexto.split('Observação:')[1]?.trim() || '';
+                    }
+                    if (!obsTexto && descTexto && !evo.opcaoIntelectual && !descTexto.startsWith('Dispositivo(s) Deferido(s):') && extrairDispositivosDeferidos(evo).length === 0) {
+                      obsTexto = descTexto;
+                    }
+
+                    if (!obsTexto) return null;
+
+                    return (
+                      <div className="text-xs text-slate-800 bg-slate-50 p-2 rounded border border-slate-200 whitespace-pre-wrap leading-relaxed">
+                        <strong className="text-[10px] uppercase tracking-wider text-slate-500 block mb-0.5">Observação:</strong>
+                        {obsTexto}
+                      </div>
+                    );
+                  })()}
 
                   {evo.conduta && (
                     <div className="text-[11px] bg-slate-50 p-2 rounded border border-slate-200 text-slate-700">

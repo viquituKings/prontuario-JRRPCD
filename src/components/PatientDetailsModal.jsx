@@ -454,16 +454,31 @@ export default function PatientDetailsModal({
                         </div>
                       )}
 
-                      {/* Caso 3 / Texto da Evolução (apenas se não for OPM estruturado nem Intelectual) */}
-                      {typeof evo.descricao === 'string' && 
-                       evo.descricao.trim() && 
-                       !evo.opcaoIntelectual && 
-                       !evo.descricao.startsWith('Dispositivo(s) Deferido(s):') && 
-                       extrairDispositivosDeferidos(evo).length === 0 && (
-                        <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-medium">
-                          {evo.descricao}
-                        </p>
-                      )}
+                      {/* Observação / Evolução Clínica (Exibida para todas as categorias quando houver texto) */}
+                      {(() => {
+                        let obsTexto = (evo.observacao || '').trim();
+                        const descTexto = (typeof evo.descricao === 'string' ? evo.descricao : '').trim();
+                        if (!obsTexto && descTexto.includes('Observação:')) {
+                          obsTexto = descTexto.split('Observação:')[1]?.trim() || '';
+                        }
+                        if (!obsTexto && descTexto && !evo.opcaoIntelectual && !descTexto.startsWith('Dispositivo(s) Deferido(s):') && extrairDispositivosDeferidos(evo).length === 0) {
+                          obsTexto = descTexto;
+                        }
+
+                        if (!obsTexto) return null;
+
+                        return (
+                          <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-1">
+                            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                              <FileText className="w-3.5 h-3.5 text-slate-400" />
+                              <span>Observação:</span>
+                            </div>
+                            <p className="text-xs text-slate-800 whitespace-pre-wrap leading-relaxed font-medium">
+                              {obsTexto}
+                            </p>
+                          </div>
+                        );
+                      })()}
 
                       {evo.conduta && (
                         <div className="mt-2 pt-2 border-t border-slate-100 bg-slate-50/70 p-2.5 rounded-lg text-xs">

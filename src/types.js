@@ -593,7 +593,7 @@ export function extrairDispositivosDeferidos(evo) {
     return raw
       .split(/[;|\n]/)
       .map((item) => item.trim())
-      .filter(Boolean)
+      .filter((item) => item && !/^observa[çc][ãa]o/i.test(item))
       .map((text) => {
         const match = text.match(/^(.*?)(?:\s*\((\d{2}\/\d{2}\/\d{4}|\d{4}-\d{2}-\d{2})\))?$/i);
         if (match && match[1]?.trim()) {

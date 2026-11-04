@@ -306,6 +306,8 @@ export async function adicionarEvolucao(pacienteId, evolucaoData, pacienteNome =
   const novaEvolucao = {
     id: `evo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     dataHora: evolucaoData.dataHora || nowIso,
+    data: evolucaoData.data || '',
+    observacao: evolucaoData.observacao || '',
     descricaoDispositivo: evolucaoData.descricaoDispositivo || '',
     descricao: evolucaoData.descricao || '',
     conduta: evolucaoData.conduta || '',
