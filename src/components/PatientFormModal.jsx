@@ -355,9 +355,12 @@ export default function PatientFormModal({
           // Se estiver editando um registro existente, o 1º OPM atualiza o registro atual;
           // qualquer OPM adicional gera um novo registro no banco.
           // Se for novo cadastro, cada OPM gera um novo registro independente.
-          const isPrimaryEdit = Boolean(patientToEdit && idx === 0);
-          const targetId = isPrimaryEdit ? patientToEdit.id : undefined;
-          const targetEvolucoes = isPrimaryEdit ? (patientToEdit.evolucoes || []) : [];
+          // Se estiver editando um registro existente, aproveita os IDs existentes do paciente
+          const existingId = (patientToEdit?.ids && patientToEdit.ids[idx]) 
+            ? patientToEdit.ids[idx] 
+            : (patientToEdit && idx === 0 ? patientToEdit.id : undefined);
+          const targetId = existingId;
+          const targetEvolucoes = idx === 0 ? (patientToEdit?.evolucoes || []) : [];
 
           return {
             ...formData,

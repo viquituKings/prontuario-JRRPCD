@@ -9,13 +9,14 @@ import {
   RotateCcw,
   Sparkles,
   Clock,
-  UserCheck
+  UserCheck,
+  Layers
 } from 'lucide-react';
 import { 
   MUNICIPIOS_SUGERIDOS,
   isMotorizadaSolicitada,
   verificarCompatibilidadeMotorizada,
-  extrairPacientesUnicos,
+  agruparPacientesPorPessoa,
   contarOpmsSolicitadas,
   getBadgeColorServico,
   temOpmSolicitada
@@ -41,12 +42,23 @@ export default function PatientList({
     ? activeServicoFilter 
     : filterServico;
 
-  // Filtragem fiel ao prontuario.example
+  // 1. Agrupa os pacientes por pessoa única (CPF ou Nome + Mãe + DN)
+  const pacientesAgrupados = useMemo(() => {
+    return agruparPacientesPorPessoa(pacientes);
+  }, [pacientes]);
+
+  const totalPacientesGeral = pacientesAgrupados.length;
+  const totalServicosGeral = pacientes.length;
+
+  // 2. Filtragem dos pacientes agrupados com base nos filtros selecionados
   const filteredPacientes = useMemo(() => {
-    return pacientes.filter((p) => {
-      // Filtro por Serviço
+    return pacientesAgrupados.filter((p) => {
+      // Filtro por Serviço: verifica se o paciente possui o serviço entre seus atendimentos
       const serv = currentServico;
-      const matchServ = !serv || p.servico_especializado === serv;
+      const matchServ = !serv || (
+        (Array.isArray(p.servicos) && p.servicos.includes(serv)) ||
+        p.servico_especializado === serv
+      );
 
       // Filtro por CID
       const cidTerm = filterCid.toUpperCase().trim();
@@ -78,7 +90,16 @@ export default function PatientList({
 
       return matchServ && matchCid && matchMun && matchSearch;
     });
-  }, [pacientes, currentServico, filterCid, filterMunicipio, searchTerm]);
+  }, [pacientesAgrupados, currentServico, filterCid, filterMunicipio, searchTerm]);
+
+  // Contagens dinâmicas para a exibição atual
+  const totalServicosExibidos = useMemo(() => {
+    return filteredPacientes.reduce((acc, p) => acc + (p.totalServicos || p.registros?.length || 1), 0);
+  }, [filteredPacientes]);
+
+  const totalOpmsExibidas = useMemo(() => {
+    return contarOpmsSolicitadas(filteredPacientes);
+  }, [filteredPacientes]);
 
   const handleResetFilters = () => {
     setFilterServico('');
@@ -172,22 +193,42 @@ export default function PatientList({
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Pesquisa rápida por nome, telefone, OPM solicitada ou observações..."
+            placeholder="Pesquisa rápida por nome, CPF, telefone, município, OPM ou observações..."
             className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
         </div>
       </div>
 
-      {/* Tabela de Pacientes fiel ao prontuario.example */}
+      {/* Tabela de Pacientes Agrupados por Pessoa */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-        {/* Barra com contagem separada de registros, pacientes e OPMs */}
-        <div className="px-5 py-3 bg-slate-50/80 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 font-medium">
-          <div>
-            Exibindo <strong className="text-slate-800">{filteredPacientes.length}</strong> {filteredPacientes.length === 1 ? 'registro' : 'registros'} 
-            <span className="mx-2 text-slate-300">•</span>
-            <strong className="text-blue-700">{extrairPacientesUnicos(filteredPacientes).length}</strong> {extrairPacientesUnicos(filteredPacientes).length === 1 ? 'paciente único' : 'pacientes únicos'}
-            <span className="mx-2 text-slate-300">•</span>
-            <strong className="text-indigo-700">{contarOpmsSolicitadas(filteredPacientes)}</strong> {contarOpmsSolicitadas(filteredPacientes) === 1 ? 'OPM solicitada' : 'OPMs solicitadas'}
+        
+        {/* Barra com contagem separada de pacientes e serviços */}
+        <div className="px-5 py-3.5 bg-slate-50/80 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 font-medium">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>
+              Listando <strong className="text-blue-700 font-bold">{filteredPacientes.length}</strong> {filteredPacientes.length === 1 ? 'paciente' : 'pacientes'}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span>
+              <strong className="text-slate-800 font-bold">{totalServicosExibidos}</strong> {totalServicosExibidos === 1 ? 'serviço registrado' : 'serviços registrados'}
+            </span>
+            <span className="text-slate-300">•</span>
+            <span>
+              <strong className="text-indigo-700 font-bold">{totalOpmsExibidas}</strong> {totalOpmsExibidas === 1 ? 'OPM solicitada' : 'OPMs solicitadas'}
+            </span>
+          </div>
+
+          <div className="text-[11px] text-slate-400">
+            {currentServico ? (
+              <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-slate-600 font-semibold shadow-2xs">
+                Filtro ativo: <strong className="text-blue-700 uppercase">{currentServico}</strong>
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-slate-500">
+                <Layers className="w-3.5 h-3.5 text-blue-600" />
+                <span>Relação unificada por paciente</span>
+              </span>
+            )}
           </div>
         </div>
 
@@ -200,7 +241,7 @@ export default function PatientList({
                 <th className="p-4">DN / Idade</th>
                 <th className="p-4">Município</th>
                 <th className="p-4">CID / Diagnóstico</th>
-                <th className="p-4">Serviço</th>
+                <th className="p-4">Serviço(s)</th>
                 <th className="p-4">OPMs Solicitadas</th>
                 <th className="p-4 text-center">Ações</th>
               </tr>
@@ -214,8 +255,9 @@ export default function PatientList({
                 </tr>
               ) : (
                 filteredPacientes.map((p) => {
-                  const servico = p.servico_especializado || 'OPM';
-                  const badgeColor = getBadgeColorServico(servico);
+                  const servicos = Array.isArray(p.servicos) && p.servicos.length > 0
+                    ? p.servicos
+                    : [p.servico_especializado || 'OPM'];
 
                   const opms = p.opm_list || [];
                   const dataEntrada = p.data_entrada || p.dataEntrada || '-';
@@ -229,7 +271,7 @@ export default function PatientList({
 
                   return (
                     <tr 
-                      key={p.id} 
+                      key={p.chaveIdentificacao || p.id} 
                       className="hover:bg-slate-50/80 transition border-b border-slate-100 cursor-pointer group"
                       onClick={() => onSelectPatient(p)}
                     >
@@ -240,7 +282,17 @@ export default function PatientList({
 
                       {/* Nome do Paciente, Mãe e CPF */}
                       <td className="p-4 font-bold text-slate-900 group-hover:text-blue-600 transition">
-                        <div>{p.nome}</div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span>{p.nome}</span>
+                          {p.totalServicos > 1 && (
+                            <span 
+                              className="text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded-full"
+                              title={`${p.totalServicos} serviços/solicitações registradas para este paciente`}
+                            >
+                              {p.totalServicos} serviços
+                            </span>
+                          )}
+                        </div>
                         {(p.nome_mae || p.nomeMae) && (
                           <div className="text-[11px] text-slate-500 font-medium truncate max-w-[220px]">
                             Mãe: {p.nome_mae || p.nomeMae}
@@ -268,9 +320,6 @@ export default function PatientList({
                       {/* CID / Diagnóstico */}
                       <td className="p-4 text-slate-700 font-medium max-w-[240px]">
                         {(() => {
-                          const cids = p.cid_list && p.cid_list.length > 0
-                            ? p.cid_list
-                            : p.cid ? p.cid.split(/[;]/).map((c) => c.trim()).filter(Boolean) : [];
                           if (cids.length === 0) return <span className="text-slate-400">-</span>;
                           return (
                             <div className="space-y-1">
@@ -284,11 +333,18 @@ export default function PatientList({
                         })()}
                       </td>
 
-                      {/* Serviço Especializado */}
-                      <td className="p-4 whitespace-nowrap">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeColor}`}>
-                          {servico}
-                        </span>
+                      {/* Serviço Especializado (Unificado) */}
+                      <td className="p-4">
+                        <div className="flex flex-wrap gap-1 max-w-[150px]">
+                          {servicos.map((s, sIdx) => (
+                            <span 
+                              key={sIdx} 
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap ${getBadgeColorServico(s)}`}
+                            >
+                              {s}
+                            </span>
+                          ))}
+                        </div>
                       </td>
 
                       {/* OPMs Solicitadas */}
@@ -344,7 +400,7 @@ export default function PatientList({
                           <button
                             onClick={() => onSelectPatient(p)}
                             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition flex items-center justify-center"
-                            title="Ver Prontuário & Evoluções"
+                            title="Ver Prontuário & Histórico Unificado"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
@@ -362,7 +418,7 @@ export default function PatientList({
                           <button
                             onClick={() => onPrintPatient(p)}
                             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition flex items-center justify-center"
-                            title="Imprimir Prontuário"
+                            title="Imprimir Prontuário Completo"
                           >
                             <Printer className="w-4 h-4" />
                           </button>
@@ -371,7 +427,7 @@ export default function PatientList({
                           <button
                             onClick={() => onEditPatient(p)}
                             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition flex items-center justify-center"
-                            title="Editar Dados do Paciente"
+                            title="Editar Cadastro do Paciente"
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
@@ -379,8 +435,12 @@ export default function PatientList({
                           {/* Excluir */}
                           <button
                             onClick={() => {
-                              if (confirm(`Tem certeza que deseja excluir o registro de ${p.nome}?`)) {
-                                onDeletePatient(p.id);
+                              const qtd = p.ids?.length || 1;
+                              const msg = qtd > 1
+                                ? `Tem certeza que deseja excluir o cadastro completo de ${p.nome}? (${qtd} registros de serviços associados serão excluídos)`
+                                : `Tem certeza que deseja excluir o registro de ${p.nome}?`;
+                              if (confirm(msg)) {
+                                onDeletePatient(p.ids || p.id);
                               }
                             }}
                             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 transition flex items-center justify-center"
@@ -399,13 +459,13 @@ export default function PatientList({
           </table>
         </div>
 
-        {/* Rodapé da tabela */}
+        {/* Rodapé da tabela com contagem separada de pacientes e serviços */}
         <div className="p-4 bg-slate-50/70 border-t border-slate-100 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
           <span>
-            Mostrando <strong>{filteredPacientes.length}</strong> de <strong>{pacientes.length}</strong> pacientes
+            Mostrando <strong>{filteredPacientes.length}</strong> {filteredPacientes.length === 1 ? 'paciente' : 'pacientes'} ({totalServicosExibidos} {totalServicosExibidos === 1 ? 'serviço' : 'serviços'}) de <strong>{totalPacientesGeral}</strong> pacientes cadastrados ({totalServicosGeral} serviços no total)
           </span>
           <span className="text-[11px] text-slate-400">
-            Clique em qualquer linha para abrir o prontuário e histórico de evolução clínica.
+            Clique em qualquer paciente para abrir o prontuário unificado e histórico de evolução clínica.
           </span>
         </div>
       </div>

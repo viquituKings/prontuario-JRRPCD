@@ -71,9 +71,19 @@ export default function PatientDetailsModal({
                 <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
                   {patient.nome}
                 </h2>
-                <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}`}>
-                  {servico}
-                </span>
+                {Array.isArray(patient.servicos) && patient.servicos.length > 1 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {patient.servicos.map((s, idx) => (
+                      <span key={idx} className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${getBadgeColorServico(s)}`}>
+                        {s}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold border ${badgeColor}`}>
+                    {servico}
+                  </span>
+                )}
               </div>
 
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-300">

@@ -129,7 +129,11 @@ export default function PrintProntuario({ patient, onClose }) {
 
             <div>
               <span className="text-slate-500 block text-[10px]">Serviço Especializado:</span>
-              <span className="font-bold text-blue-800">{servico}</span>
+              <span className="font-bold text-blue-800">
+                {Array.isArray(patient.servicos) && patient.servicos.length > 1
+                  ? patient.servicos.join(' • ')
+                  : servico}
+              </span>
             </div>
           </div>
 

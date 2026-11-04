@@ -1,11 +1,11 @@
 import React from 'react';
 import { Users, Accessibility, Brain, Activity, Eye, Baby } from 'lucide-react';
-import { extrairPacientesUnicos, contarOpmsSolicitadas } from '../types';
+import { extrairPacientesUnicos, contarOpmsSolicitadas, temOpmSolicitada } from '../types';
 
 export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) {
   const totalPacientesUnicos = extrairPacientesUnicos(pacientes).length;
   const totalOpms = contarOpmsSolicitadas(pacientes);
-  const totalRegistros = pacientes.length;
+  const totalServicos = pacientes.length;
 
   const totalIntelectual = pacientes.filter(
     (p) => p.servico_especializado === 'Reab. Intelectual'
@@ -23,12 +23,18 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
     (p) => p.servico_especializado === 'Neonato de Risco' || p.servico_especializado === 'Neonato de risco'
   ).length;
 
+  const pacientesOpm = extrairPacientesUnicos(pacientes.filter((p) => temOpmSolicitada(p))).length;
+  const pacientesIntelectual = extrairPacientesUnicos(pacientes.filter((p) => p.servico_especializado === 'Reab. Intelectual')).length;
+  const pacientesFisica = extrairPacientesUnicos(pacientes.filter((p) => p.servico_especializado === 'Reab. Fisica')).length;
+  const pacientesVisual = extrairPacientesUnicos(pacientes.filter((p) => p.servico_especializado === 'Reab. Visual' || p.servico_especializado === 'Reabilitação Visual')).length;
+  const pacientesNeonato = extrairPacientesUnicos(pacientes.filter((p) => p.servico_especializado === 'Neonato de Risco' || p.servico_especializado === 'Neonato de risco')).length;
+
   const cards = [
     {
       id: 'todos',
-      label: 'Total de Pacientes',
+      label: 'Pacientes',
       count: totalPacientesUnicos,
-      subtext: `${totalRegistros} atendimentos registrados`,
+      subtext: `${totalServicos} serviços registrados`,
       icon: Users,
       bgColor: 'bg-blue-50',
       iconColor: 'text-blue-600',
@@ -38,7 +44,7 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
       id: 'OPM',
       label: 'OPMs Solicitadas',
       count: totalOpms,
-      subtext: 'Tecnologias assistivas / Órteses',
+      subtext: `${pacientesOpm} pacientes com OPM`,
       icon: Accessibility,
       bgColor: 'bg-indigo-50',
       iconColor: 'text-indigo-600',
@@ -48,7 +54,7 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
       id: 'Reab. Intelectual',
       label: 'Reab. Intelectual',
       count: totalIntelectual,
-      subtext: 'Atendimentos Intelectuais',
+      subtext: `${pacientesIntelectual} pacientes`,
       icon: Brain,
       bgColor: 'bg-purple-50',
       iconColor: 'text-purple-600',
@@ -58,7 +64,7 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
       id: 'Reab. Fisica',
       label: 'Reab. Física',
       count: totalFisica,
-      subtext: 'Atendimentos Motores / Físicos',
+      subtext: `${pacientesFisica} pacientes`,
       icon: Activity,
       bgColor: 'bg-emerald-50',
       iconColor: 'text-emerald-600',
@@ -68,7 +74,7 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
       id: 'Reab. Visual',
       label: 'Reab. Visual',
       count: totalVisual,
-      subtext: 'Reabilitação Visual',
+      subtext: `${pacientesVisual} pacientes`,
       icon: Eye,
       bgColor: 'bg-amber-50',
       iconColor: 'text-amber-600',
@@ -78,7 +84,7 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
       id: 'Neonato de Risco',
       label: 'Neonato de Risco',
       count: totalNeonato,
-      subtext: 'Acompanhamento Neonatal',
+      subtext: `${pacientesNeonato} pacientes`,
       icon: Baby,
       bgColor: 'bg-rose-50',
       iconColor: 'text-rose-600',

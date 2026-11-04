@@ -369,6 +369,178 @@ export function extrairPacientesUnicos(pacientes = []) {
 }
 
 /**
+ * Converte data BR (DD/MM/AAAA) ou ISO para objeto Date para comparação
+ */
+function parseDataBR(dataStr) {
+  if (!dataStr) return null;
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(dataStr)) {
+    const [d, m, y] = dataStr.split('/');
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+  const d = new Date(dataStr);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Agrupa registros de pacientes pelo identificador único (CPF ou Nome + Mãe + DN),
+ * unificando serviços, OPMs, CIDs e evoluções em um único registro de paciente.
+ */
+export function agruparPacientesPorPessoa(pacientes = []) {
+  if (!Array.isArray(pacientes)) return [];
+
+  const mapa = new Map();
+
+  for (const p of pacientes) {
+    if (!p) continue;
+    const chave = getChaveIdentificacaoPaciente(p);
+
+    if (!mapa.has(chave)) {
+      const servicoInicial = p.servico_especializado || 'OPM';
+
+      const opmsIniciais = [];
+      if (Array.isArray(p.opm_list)) {
+        p.opm_list.forEach((o) => {
+          if (o && (o.solicitada || o.tipo)) {
+            opmsIniciais.push({
+              tipo: o.tipo || 'OPM',
+              solicitada: (o.solicitada || '').trim()
+            });
+          }
+        });
+      } else if (p.tipoOpm) {
+        opmsIniciais.push({
+          tipo: 'OPM',
+          solicitada: p.tipoOpm.trim()
+        });
+      }
+
+      const cidsIniciais = [];
+      if (Array.isArray(p.cid_list)) {
+        cidsIniciais.push(...p.cid_list);
+      } else if (p.cid) {
+        cidsIniciais.push(...p.cid.split(/[;]/).map((c) => c.trim()).filter(Boolean));
+      }
+
+      const evolucoesIniciais = Array.isArray(p.evolucoes) ? [...p.evolucoes] : [];
+
+      mapa.set(chave, {
+        ...p,
+        chaveIdentificacao: chave,
+        ids: [p.id],
+        registros: [p],
+        totalServicos: 1,
+        servicos: [servicoInicial],
+        opm_list: opmsIniciais,
+        cid_list: Array.from(new Set(cidsIniciais)),
+        evolucoes: evolucoesIniciais
+      });
+    } else {
+      const existente = mapa.get(chave);
+      existente.ids.push(p.id);
+      existente.registros.push(p);
+      existente.totalServicos += 1;
+
+      // Unifica serviços sem duplicatas
+      const novoServico = p.servico_especializado || 'OPM';
+      if (!existente.servicos.includes(novoServico)) {
+        existente.servicos.push(novoServico);
+      }
+
+      // Preserva a data de entrada mais antiga
+      const dataExistente = existente.data_entrada || existente.dataEntrada;
+      const dataNova = p.data_entrada || p.dataEntrada;
+      if (dataNova && dataExistente) {
+        const dEx = parseDataBR(dataExistente);
+        const dNv = parseDataBR(dataNova);
+        if (dNv && dEx && dNv < dEx) {
+          existente.data_entrada = dataNova;
+          existente.dataEntrada = dataNova;
+        }
+      } else if (!dataExistente && dataNova) {
+        existente.data_entrada = dataNova;
+        existente.dataEntrada = dataNova;
+      }
+
+      // Unifica OPMs sem duplicatas
+      if (Array.isArray(p.opm_list)) {
+        p.opm_list.forEach((o) => {
+          if (o && (o.solicitada || o.tipo)) {
+            const limpa = {
+              tipo: o.tipo || 'OPM',
+              solicitada: (o.solicitada || '').trim()
+            };
+            const jaExiste = existente.opm_list.some(
+              (item) => item.tipo === limpa.tipo && item.solicitada.toUpperCase() === limpa.solicitada.toUpperCase()
+            );
+            if (!jaExiste) {
+              existente.opm_list.push(limpa);
+            }
+          }
+        });
+      } else if (p.tipoOpm) {
+        const limpa = { tipo: 'OPM', solicitada: p.tipoOpm.trim() };
+        const jaExiste = existente.opm_list.some(
+          (item) => item.solicitada.toUpperCase() === limpa.solicitada.toUpperCase()
+        );
+        if (!jaExiste) {
+          existente.opm_list.push(limpa);
+        }
+      }
+
+      // Unifica CIDs sem duplicatas
+      const novosCids = Array.isArray(p.cid_list)
+        ? p.cid_list
+        : p.cid ? p.cid.split(/[;]/).map((c) => c.trim()).filter(Boolean) : [];
+
+      for (const nc of novosCids) {
+        if (!existente.cid_list.some((ec) => ec.toUpperCase() === nc.toUpperCase())) {
+          existente.cid_list.push(nc);
+        }
+      }
+
+      // Unifica Evoluções sem duplicatas
+      if (Array.isArray(p.evolucoes)) {
+        for (const evo of p.evolucoes) {
+          if (!evo) continue;
+          const jaTem = existente.evolucoes.some((e) => {
+            if (e.id && evo.id && e.id === evo.id) return true;
+            return e.dataHora === evo.dataHora && e.descricao === evo.descricao;
+          });
+          if (!jaTem) {
+            existente.evolucoes.push(evo);
+          }
+        }
+      }
+
+      // Completa dados cadastrais que possam estar em branco no registro primário
+      if (!existente.cpf && p.cpf) existente.cpf = p.cpf;
+      if (!existente.telefone && p.telefone) existente.telefone = p.telefone;
+      if (!existente.nome_mae && (p.nome_mae || p.nomeMae)) existente.nome_mae = p.nome_mae || p.nomeMae;
+      if (!existente.municipio && p.municipio) existente.municipio = p.municipio;
+      if (!existente.esf && p.esf) existente.esf = p.esf;
+      if (!existente.dn && (p.dn || p.dataNascimento)) existente.dn = p.dn || p.dataNascimento;
+      if (!existente.observacoes && p.observacoes) existente.observacoes = p.observacoes;
+    }
+  }
+
+  // Pós-processamento das strings e ordenação de evoluções
+  return Array.from(mapa.values()).map((pac) => {
+    if (Array.isArray(pac.evolucoes) && pac.evolucoes.length > 1) {
+      pac.evolucoes.sort((a, b) => {
+        const dataA = a.dataHora || a.data || '';
+        const dataB = b.dataHora || b.data || '';
+        return dataB.localeCompare(dataA);
+      });
+    }
+
+    pac.cid = pac.cid_list.join('; ');
+    pac.tipoOpm = pac.opm_list.map((o) => `${o.tipo}: ${o.solicitada}`).join('; ');
+
+    return pac;
+  });
+}
+
+/**
  * Retorna a contagem total de OPMs solicitadas em todos os registros
  */
 export function contarOpmsSolicitadas(pacientes = []) {

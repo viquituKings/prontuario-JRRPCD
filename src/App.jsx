@@ -118,10 +118,13 @@ export default function App() {
     }
   };
 
-  const handleDeletePatient = async (patientId) => {
-    const paciente = pacientes.find((p) => p.id === patientId);
-    await excluirPaciente(patientId, paciente?.nome || '', currentUser);
-    if (selectedPatient?.id === patientId) {
+  const handleDeletePatient = async (patientIdOrIds) => {
+    const ids = Array.isArray(patientIdOrIds) ? patientIdOrIds : [patientIdOrIds];
+    for (const id of ids) {
+      const paciente = pacientes.find((p) => p.id === id);
+      await excluirPaciente(id, paciente?.nome || '', currentUser);
+    }
+    if (selectedPatient && (ids.includes(selectedPatient.id) || (selectedPatient.ids && selectedPatient.ids.some((id) => ids.includes(id))))) {
       setSelectedPatient(null);
     }
   };
