@@ -3,6 +3,12 @@ import { Search, X, Check, Stethoscope, ChevronDown, Plus } from 'lucide-react';
 import allCids from '../data/cids.json';
 import { normalizarTexto } from '../types';
 
+// Pré-processamento dos CIDs em memória uma única vez para resposta instantânea ao digitar
+const PREPARED_CIDS = allCids.map((entry) => ({
+  raw: entry,
+  normalized: normalizarTexto(entry)
+}));
+
 export default function CidAutocompleteInput({
   value = '',
   onChange,
@@ -28,7 +34,7 @@ export default function CidAutocompleteInput({
 
   const normalizedQuery = normalizarTexto(value);
 
-  // Busca rápida nos 14.349 CIDs oficiais da pasta cid/
+  // Busca ultra-rápida nos 15.307 CIDs oficiais (CID.pdf + CID10.xml)
   const filteredCids = useMemo(() => {
     if (!normalizedQuery || normalizedQuery.length < 1) {
       // Sugestões populares para reabilitação/PCD quando vazio
@@ -37,6 +43,7 @@ export default function CidAutocompleteInput({
         'G80 - Paralisia cerebral',
         'G80.0 - Paralisia cerebral espástica quadriparética',
         'G82 - Paraplegia e tetraplegia',
+        'B91 - Sequelas de poliomielite',
         'F84 - Transtornos globais do desenvolvimento',
         'F84.0 - Autismo infantil (TEA)',
         'F90 - Transtorno do déficit de atenção e hiperatividade (TDAH)',
@@ -52,10 +59,10 @@ export default function CidAutocompleteInput({
     const results = [];
     const query = normalizedQuery;
 
-    for (let i = 0; i < allCids.length; i++) {
-      const entry = allCids[i];
-      if (normalizarTexto(entry).includes(query)) {
-        results.push(entry);
+    for (let i = 0; i < PREPARED_CIDS.length; i++) {
+      const item = PREPARED_CIDS[i];
+      if (item.normalized.includes(query)) {
+        results.push(item.raw);
         if (results.length >= 35) break; // Limita a 35 para fluidez instantânea
       }
     }
