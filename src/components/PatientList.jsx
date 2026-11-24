@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
   Eye, 
@@ -10,23 +10,40 @@ import {
   Sparkles,
   Clock,
   UserCheck,
-  Layers
+  Layers,
+  Archive,
+  ArrowUpDown
 } from 'lucide-react';
 import { 
   MUNICIPIOS_SUGERIDOS,
   isMotorizadaSolicitada,
   verificarCompatibilidadeMotorizada,
   agruparPacientesPorPessoa,
+  getChaveIdentificacaoPaciente,
   contarOpmsSolicitadas,
   getBadgeColorServico,
   temOpmSolicitada
 } from '../types';
+
+const STORAGE_KEY_PATIENT_VIEW_MODE = 'jrrpcd_patient_view_mode';
+
+function parseDataTimestamp(dataStr) {
+  if (!dataStr) return 0;
+  const trimmed = String(dataStr).trim();
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+    const [d, m, y] = trimmed.split('/');
+    return new Date(Number(y), Number(m) - 1, Number(d)).getTime() || 0;
+  }
+  const ts = new Date(trimmed).getTime();
+  return isNaN(ts) ? 0 : ts;
+}
 
 export default function PatientList({
   pacientes,
   onSelectPatient,
   onEditPatient,
   onDeletePatient,
+  onArchivePatient,
   onOpenEvolutionModal,
   onPrintPatient,
   activeServicoFilter,
@@ -36,23 +53,86 @@ export default function PatientList({
   const [filterCid, setFilterCid] = useState('');
   const [filterMunicipio, setFilterMunicipio] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [ordenacao, setOrdenacao] = useState('entrada_recente');
+  const [agruparPorPaciente, setAgruparPorPaciente] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY_PATIENT_VIEW_MODE) !== 'separated';
+    } catch {
+      return true;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY_PATIENT_VIEW_MODE,
+        agruparPorPaciente ? 'unified' : 'separated'
+      );
+    } catch (e) {
+      console.warn('Erro ao salvar modo de visualização da lista:', e);
+    }
+  }, [agruparPorPaciente]);
 
   // Sincroniza filtro vindo dos Cards de Estatística
   const currentServico = activeServicoFilter && activeServicoFilter !== 'todos' 
     ? activeServicoFilter 
     : filterServico;
 
-  // 1. Agrupa os pacientes por pessoa única (CPF ou Nome + Mãe + DN)
+  // 1. Prepara a lista conforme o modo selecionado (Unificado por pessoa ou Separado por solicitação)
   const pacientesAgrupados = useMemo(() => {
     return agruparPacientesPorPessoa(pacientes);
   }, [pacientes]);
 
+  const mapaUnificadoPorChave = useMemo(() => {
+    const map = new Map();
+    for (const pac of pacientesAgrupados) {
+      if (pac.chaveIdentificacao) {
+        map.set(pac.chaveIdentificacao, pac);
+      }
+    }
+    return map;
+  }, [pacientesAgrupados]);
+
+  const getProntuarioUnificado = (p) => {
+    const chave = p.chaveIdentificacao || getChaveIdentificacaoPaciente(p);
+    return mapaUnificadoPorChave.get(chave) || p;
+  };
+
+  const pacientesSeparados = useMemo(() => {
+    return pacientes
+      .filter(Boolean)
+      .map((p) => {
+        const opmList = Array.isArray(p.opm_list)
+          ? p.opm_list
+          : p.tipoOpm
+            ? [{ tipo: 'OPM', solicitada: p.tipoOpm.trim(), data: p.data_entrada || p.dataEntrada || '' }]
+            : [];
+        const cidList = Array.isArray(p.cid_list)
+          ? p.cid_list
+          : p.cid
+            ? p.cid.split(/[;]/).map((c) => c.trim()).filter(Boolean)
+            : [];
+
+        return {
+          ...p,
+          ids: [p.id],
+          registros: [p],
+          totalServicos: 1,
+          servicos: [p.servico_especializado || 'OPM'],
+          opm_list: opmList,
+          cid_list: cidList
+        };
+      });
+  }, [pacientes]);
+
+  const pacientesBase = agruparPorPaciente ? pacientesAgrupados : pacientesSeparados;
+
   const totalPacientesGeral = pacientesAgrupados.length;
   const totalServicosGeral = pacientes.length;
 
-  // 2. Filtragem dos pacientes agrupados com base nos filtros selecionados
+  // 2. Filtragem e ordenação dos registros com base nos filtros selecionados (Padrão: Alfabética A-Z)
   const filteredPacientes = useMemo(() => {
-    return pacientesAgrupados.filter((p) => {
+    const filtrados = pacientesBase.filter((p) => {
       // Filtro por Serviço: verifica se o paciente possui o serviço entre seus atendimentos
       const serv = currentServico;
       const matchServ = !serv || (
@@ -90,7 +170,46 @@ export default function PatientList({
 
       return matchServ && matchCid && matchMun && matchSearch;
     });
-  }, [pacientesAgrupados, currentServico, filterCid, filterMunicipio, searchTerm]);
+
+    return [...filtrados].sort((a, b) => {
+      switch (ordenacao) {
+        case 'alfabetica_za':
+          return (b.nome || '').localeCompare(a.nome || '', 'pt-BR', { sensitivity: 'base' });
+        case 'entrada_recente': {
+          const diff =
+            parseDataTimestamp(b.data_entrada || b.dataEntrada) -
+            parseDataTimestamp(a.data_entrada || a.dataEntrada);
+          if (diff !== 0) return diff;
+          return (
+            new Date(b.createdAt || b.updatedAt || 0).getTime() -
+            new Date(a.createdAt || a.updatedAt || 0).getTime()
+          );
+        }
+        case 'entrada_antiga':
+          return (
+            parseDataTimestamp(a.data_entrada || a.dataEntrada) -
+            parseDataTimestamp(b.data_entrada || b.dataEntrada)
+          );
+        case 'municipio_az': {
+          const ma = (a.municipio || '').trim();
+          const mb = (b.municipio || '').trim();
+          if (!ma && !mb) return (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' });
+          if (!ma) return 1;
+          if (!mb) return -1;
+          const cmp = ma.localeCompare(mb, 'pt-BR', { sensitivity: 'base' });
+          return cmp !== 0 ? cmp : (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' });
+        }
+        case 'cadastro_recente':
+          return (
+            new Date(b.createdAt || b.updatedAt || 0).getTime() -
+            new Date(a.createdAt || a.updatedAt || 0).getTime()
+          );
+        case 'alfabetica_az':
+        default:
+          return (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' });
+      }
+    });
+  }, [pacientesBase, currentServico, filterCid, filterMunicipio, searchTerm, ordenacao]);
 
   // Contagens dinâmicas para a exibição atual
   const totalServicosExibidos = useMemo(() => {
@@ -106,6 +225,7 @@ export default function PatientList({
     setFilterCid('');
     setFilterMunicipio('');
     setSearchTerm('');
+    setOrdenacao('entrada_recente');
     if (onSelectServicoFilter) {
       onSelectServicoFilter('todos');
     }
@@ -114,9 +234,9 @@ export default function PatientList({
   return (
     <div className="space-y-4 no-print">
       
-      {/* Barra de Filtros no padrão do prontuario.example */}
+      {/* Barra de Filtros e Ordenação */}
       <div className="bg-white p-6 rounded-2xl border border-slate-100 shadow-sm space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           
           {/* Filtro por Serviço */}
           <div>
@@ -173,6 +293,26 @@ export default function PatientList({
             </select>
           </div>
 
+          {/* Ordenação (Padrão: Alfabética A-Z) */}
+          <div>
+            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider flex items-center gap-1">
+              <ArrowUpDown className="w-3 h-3 text-blue-600" />
+              <span>Ordenar por</span>
+            </label>
+            <select
+              value={ordenacao}
+              onChange={(e) => setOrdenacao(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="entrada_recente">Data de Entrada (Mais recente)</option>
+              <option value="entrada_antiga">Data de Entrada (Mais antiga)</option>
+              <option value="alfabetica_az">Ordem Alfabética (A → Z)</option>
+              <option value="alfabetica_za">Ordem Alfabética (Z → A)</option>
+              <option value="municipio_az">Município (A → Z)</option>
+              <option value="cadastro_recente">Cadastro (Mais recente)</option>
+            </select>
+          </div>
+
           {/* Botão Limpar Filtros */}
           <div className="flex items-end">
             <button
@@ -202,33 +342,75 @@ export default function PatientList({
       {/* Tabela de Pacientes Agrupados por Pessoa */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         
-        {/* Barra com contagem separada de pacientes e serviços */}
-        <div className="px-5 py-3.5 bg-slate-50/80 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 font-medium">
+        {/* Barra com contagem separada de pacientes/solicitações e Switch de visualização */}
+        <div className="px-5 py-3.5 bg-slate-50/80 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 font-medium">
           <div className="flex flex-wrap items-center gap-2">
-            <span>
-              Listando <strong className="text-blue-700 font-bold">{filteredPacientes.length}</strong> {filteredPacientes.length === 1 ? 'paciente' : 'pacientes'}
-            </span>
-            <span className="text-slate-300">•</span>
-            <span>
-              <strong className="text-slate-800 font-bold">{totalServicosExibidos}</strong> {totalServicosExibidos === 1 ? 'serviço registrado' : 'serviços registrados'}
-            </span>
+            {agruparPorPaciente ? (
+              <>
+                <span>
+                  Listando <strong className="text-blue-700 font-bold">{filteredPacientes.length}</strong> {filteredPacientes.length === 1 ? 'paciente' : 'pacientes'}
+                </span>
+                <span className="text-slate-300">•</span>
+                <span>
+                  <strong className="text-slate-800 font-bold">{totalServicosExibidos}</strong> {totalServicosExibidos === 1 ? 'serviço registrado' : 'serviços registrados'}
+                </span>
+              </>
+            ) : (
+              <span>
+                Listando <strong className="text-blue-700 font-bold">{filteredPacientes.length}</strong> {filteredPacientes.length === 1 ? 'solicitação' : 'solicitações'}
+              </span>
+            )}
             <span className="text-slate-300">•</span>
             <span>
               <strong className="text-indigo-700 font-bold">{totalOpmsExibidas}</strong> {totalOpmsExibidas === 1 ? 'OPM solicitada' : 'OPMs solicitadas'}
             </span>
+            {currentServico && (
+              <>
+                <span className="text-slate-300">•</span>
+                <span className="bg-white border border-slate-200 px-2 py-0.5 rounded-lg text-[11px] text-slate-600 font-semibold shadow-2xs">
+                  Filtro: <strong className="text-blue-700 uppercase">{currentServico}</strong>
+                </span>
+              </>
+            )}
           </div>
 
-          <div className="text-[11px] text-slate-400">
-            {currentServico ? (
-              <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-slate-600 font-semibold shadow-2xs">
-                Filtro ativo: <strong className="text-blue-700 uppercase">{currentServico}</strong>
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-slate-500">
-                <Layers className="w-3.5 h-3.5 text-blue-600" />
-                <span>Relação unificada por paciente</span>
-              </span>
-            )}
+          {/* Switch Unificado vs Separado por Solicitação */}
+          <div className="flex items-center gap-2 bg-white border border-slate-200 px-3 py-1.5 rounded-xl shadow-2xs">
+            <span
+              onClick={() => setAgruparPorPaciente(false)}
+              className={`text-[11px] font-bold cursor-pointer transition ${
+                !agruparPorPaciente ? 'text-blue-700' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              Por solicitação
+            </span>
+
+            <button
+              type="button"
+              role="switch"
+              aria-checked={agruparPorPaciente}
+              onClick={() => setAgruparPorPaciente((prev) => !prev)}
+              title={agruparPorPaciente ? 'Alternar para exibição separada por solicitação' : 'Alternar para exibição unificada por paciente'}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                agruparPorPaciente ? 'bg-blue-600' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                  agruparPorPaciente ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+
+            <span
+              onClick={() => setAgruparPorPaciente(true)}
+              className={`text-[11px] font-bold cursor-pointer flex items-center gap-1 transition ${
+                agruparPorPaciente ? 'text-blue-700' : 'text-slate-400 hover:text-slate-600'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>Unificado</span>
+            </span>
           </div>
         </div>
 
@@ -271,9 +453,9 @@ export default function PatientList({
 
                   return (
                     <tr 
-                      key={p.chaveIdentificacao || p.id} 
+                      key={agruparPorPaciente ? (p.chaveIdentificacao || p.id) : p.id} 
                       className="hover:bg-slate-50/80 transition border-b border-slate-100 cursor-pointer group"
-                      onClick={() => onSelectPatient(p)}
+                      onClick={() => onSelectPatient(getProntuarioUnificado(p))}
                     >
                       {/* Data de Entrada */}
                       <td className="p-4 font-medium text-slate-600 whitespace-nowrap">
@@ -396,9 +578,9 @@ export default function PatientList({
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="flex items-center justify-center space-x-1.5">
-                          {/* Ver Prontuário Completo */}
+                          {/* Ver Prontuário Completo (sempre unificado) */}
                           <button
-                            onClick={() => onSelectPatient(p)}
+                            onClick={() => onSelectPatient(getProntuarioUnificado(p))}
                             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 transition flex items-center justify-center"
                             title="Ver Prontuário & Histórico Unificado"
                           >
@@ -407,7 +589,7 @@ export default function PatientList({
 
                           {/* Adicionar Prontuário Médico */}
                           <button
-                            onClick={() => onOpenEvolutionModal(p)}
+                            onClick={() => onOpenEvolutionModal(getProntuarioUnificado(p))}
                             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-teal-50 text-slate-600 hover:text-teal-600 transition flex items-center justify-center"
                             title="Registrar Prontuário Médico"
                           >
@@ -416,7 +598,7 @@ export default function PatientList({
 
                           {/* Imprimir */}
                           <button
-                            onClick={() => onPrintPatient(p)}
+                            onClick={() => onPrintPatient(getProntuarioUnificado(p))}
                             className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 hover:text-slate-900 transition flex items-center justify-center"
                             title="Imprimir Prontuário Completo"
                           >
@@ -431,6 +613,17 @@ export default function PatientList({
                           >
                             <Edit3 className="w-4 h-4" />
                           </button>
+
+                          {/* Mover para Arquivo Morto (sempre preserva histórico unificado) */}
+                          {onArchivePatient && (
+                            <button
+                              onClick={() => onArchivePatient(getProntuarioUnificado(p))}
+                              className="w-8 h-8 rounded-lg bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 transition flex items-center justify-center"
+                              title="Mover para Arquivo Morto"
+                            >
+                              <Archive className="w-4 h-4" />
+                            </button>
+                          )}
 
                           {/* Excluir */}
                           <button

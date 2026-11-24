@@ -116,7 +116,7 @@ export default function StatsCards({ pacientes, activeFilter, onSelectFilter }) 
                 {card.count}
               </h3>
               {card.subtext && (
-                <p className="text-[10px] text-slate-400 font-medium truncate max-w-[130px] sm:max-w-[150px]">
+                <p className="text-[10px] text-slate-400 font-medium truncate">
                   {card.subtext}
                 </p>
               )}

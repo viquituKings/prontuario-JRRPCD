@@ -19,7 +19,8 @@ import {
   CheckCircle2,
   AlertTriangle,
   Zap,
-  Brain
+  Brain,
+  Archive
 } from 'lucide-react';
 import {
   formatarDataHoraBR,
@@ -36,9 +37,11 @@ export default function PatientDetailsModal({
   onClose,
   patient,
   onEditPatient,
+  onArchivePatient,
   onOpenEvolutionModal,
   onDeleteEvolution,
-  onPrintPatient
+  onPrintPatient,
+  isArchived = false
 }) {
   if (!isOpen || !patient) return null;
 
@@ -70,8 +73,8 @@ export default function PatientDetailsModal({
   const badgeColor = getBadgeColorServico(servico);
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-100 flex flex-col max-h-[94vh] animate-in fade-in zoom-in-95 duration-150">
+    <div className={`fixed inset-0 ${isArchived ? 'z-[60]' : 'z-50'} overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6 no-print`}>
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 flex flex-col max-h-[94vh] animate-in fade-in zoom-in-95 duration-150">
 
         {/* Topo com Identificação */}
         <div className="p-6 bg-slate-900 text-white relative">
@@ -122,17 +125,33 @@ export default function PatientDetailsModal({
                 <span>Imprimir</span>
               </button>
 
-              <button
-                onClick={() => {
-                  onClose();
-                  onEditPatient(patient);
-                }}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition"
-                title="Editar Cadastro"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span>Editar</span>
-              </button>
+              {!isArchived && onArchivePatient && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onArchivePatient(patient);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-medium rounded-lg transition"
+                  title="Mover para Arquivo Morto"
+                >
+                  <Archive className="w-3.5 h-3.5" />
+                  <span>Arquivo Morto</span>
+                </button>
+              )}
+
+              {!isArchived && (
+                <button
+                  onClick={() => {
+                    onClose();
+                    onEditPatient(patient);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-medium rounded-lg transition"
+                  title="Editar Cadastro"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span>Editar</span>
+                </button>
+              )}
 
               <button
                 onClick={onClose}
@@ -143,6 +162,25 @@ export default function PatientDetailsModal({
             </div>
           </div>
         </div>
+
+        {/* Faixa de Arquivo Morto (quando visualizando histórico arquivado) */}
+        {isArchived && (
+          <div className="bg-amber-50 border-b border-amber-200 px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-amber-950">
+            <div className="flex items-center gap-2">
+              <Archive className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>
+                <strong>ARQUIVO MORTO</strong> — Data de Saída: <strong>{patient.dataSaida || '-'}</strong>
+                {patient.pasta && (
+                  <> • Pasta: <strong>{patient.pasta}</strong></>
+                )}
+                {patient.observacoes && (
+                  <> • Motivo/Obs.: <strong>{patient.observacoes}</strong></>
+                )}
+              </span>
+            </div>
+            <span className="text-[11px] text-amber-800 font-semibold">Modo Histórico (Somente Leitura)</span>
+          </div>
+        )}
 
         {/* Informações Cadastrais (Mãe, CPF, Telefone, Município, ESF) */}
         <div className="bg-slate-50 border-b border-slate-200 px-6 py-3.5 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
@@ -375,13 +413,15 @@ export default function PatientDetailsModal({
                 </p>
               </div>
 
-              <button
-                onClick={() => onOpenEvolutionModal(patient)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl shadow-sm transition hover:scale-[1.02]"
-              >
-                <PlusCircle className="w-4 h-4" />
-                <span>Novo Prontuário</span>
-              </button>
+              {!isArchived && (
+                <button
+                  onClick={() => onOpenEvolutionModal(patient)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold rounded-xl shadow-sm transition hover:scale-[1.02]"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span>Novo Prontuário</span>
+                </button>
+              )}
             </div>
 
             {evolucoes.length === 0 ? (
@@ -414,7 +454,7 @@ export default function PatientDetailsModal({
                             </span>
                           )}
                           <span className="text-xs text-slate-600 font-semibold">
-                            {formatarDataHoraBR(evo.dataHora || evo.data)}
+                            {formatarDataBR(evo.data || evo.dataHora)}
                           </span>
                         </div>
                         <div className="flex items-center flex-wrap gap-2">
@@ -430,17 +470,19 @@ export default function PatientDetailsModal({
                               {evo.profissional}
                             </span>
                           )}
-                          <button
-                            onClick={() => {
-                              if (confirm('Tem certeza que deseja excluir esta anotação do prontuário?')) {
-                                onDeleteEvolution(patient.id, evo.id, patient.nome);
-                              }
-                            }}
-                            className="text-slate-300 hover:text-red-500 p-1 rounded opacity-0 group-hover:opacity-100 transition"
-                            title="Excluir anotação"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          {!isArchived && (
+                            <button
+                              onClick={() => {
+                                if (confirm('Tem certeza que deseja excluir esta anotação do prontuário?')) {
+                                  onDeleteEvolution(patient.id, evo.id, patient.nome);
+                                }
+                              }}
+                              className="text-slate-300 hover:text-red-500 p-1 rounded opacity-0 group-hover:opacity-100 transition"
+                              title="Excluir anotação"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                         </div>
                       </div>
 

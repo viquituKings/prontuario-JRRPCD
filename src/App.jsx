@@ -11,21 +11,45 @@ import LoginScreen from './components/LoginScreen';
 import ChangePasswordModal from './components/ChangePasswordModal';
 import UserManagementModal from './components/UserManagementModal';
 import AuditLogsModal from './components/AuditLogsModal';
-import { 
-  subscribePacientes, 
-  salvarPaciente, 
-  excluirPaciente, 
-  adicionarEvolucao, 
-  excluirEvolucao, 
-  isFirebaseActive 
+import ArquivoMortoModal from './components/ArquivoMortoModal';
+import MoverParaArquivoMortoModal from './components/MoverParaArquivoMortoModal';
+import {
+  subscribePacientes,
+  salvarPaciente,
+  excluirPaciente,
+  adicionarEvolucao,
+  excluirEvolucao,
+  subscribeArquivoMorto,
+  moverPacienteParaArquivoMorto,
+  salvarArquivoMorto,
+  restaurarPacienteDoArquivoMorto,
+  importarArquivoMortoLote,
+  isFirebaseActive
 } from './firebase';
-import { 
-  getUsuarioLogado, 
-  logout, 
-  inicializarUsuarios 
+import {
+  getUsuarioLogado,
+  logout,
+  inicializarUsuarios
 } from './auth';
+import { agruparPacientesPorPessoa } from './types';
+
+const STORAGE_KEY_THEME = 'jrrpcd_theme';
+
+function getInitialDarkMode() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_THEME);
+    const isDark = saved === 'dark';
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', isDark);
+    }
+    return isDark;
+  } catch {
+    return false;
+  }
+}
 
 export default function App() {
+  const [isDarkMode, setIsDarkMode] = useState(getInitialDarkMode);
   const [currentUser, setCurrentUser] = useState(() => getUsuarioLogado());
   const [pacientes, setPacientes] = useState([]);
   const [isFirebase, setIsFirebase] = useState(isFirebaseActive());
@@ -45,8 +69,24 @@ export default function App() {
   const [isUserManagementOpen, setIsUserManagementOpen] = useState(false);
   const [isAuditLogsOpen, setIsAuditLogsOpen] = useState(false);
 
+  // Gestão de Arquivo Morto
+  const [arquivoMorto, setArquivoMorto] = useState([]);
+  const [isArquivoMortoOpen, setIsArquivoMortoOpen] = useState(false);
+  const [patientToArchive, setPatientToArchive] = useState(null);
+  const [archivedPatientToView, setArchivedPatientToView] = useState(null);
+
   // Filtro ativo vindo dos Cards de Estatísticas (Serviços)
   const [activeServicoFilter, setActiveServicoFilter] = useState('todos');
+
+  // Sincroniza e persiste o tema escuro/claro no DOM e localStorage
+  useEffect(() => {
+    try {
+      document.documentElement.classList.toggle('dark', isDarkMode);
+      localStorage.setItem(STORAGE_KEY_THEME, isDarkMode ? 'dark' : 'light');
+    } catch (e) {
+      console.warn('Erro ao salvar preferência de tema:', e);
+    }
+  }, [isDarkMode]);
 
   // Inicializa a coleção de usuários garantindo que mariacecilia / 12345678 esteja disponível
   useEffect(() => {
@@ -69,15 +109,43 @@ export default function App() {
       setIsLoading(false);
       setIsFirebase(isFirebaseActive());
 
-      // Se houver um paciente selecionado, atualiza seus dados na tela
+      // Se houver um paciente selecionado, mantém os dados unificados atualizados na tela
       setSelectedPatient((current) => {
         if (!current) return null;
-        return data.find((p) => p.id === current.id) || null;
+        const unificados = agruparPacientesPorPessoa(data);
+        return (
+          unificados.find(
+            (p) =>
+              (current.chaveIdentificacao && p.chaveIdentificacao === current.chaveIdentificacao) ||
+              p.id === current.id ||
+              (Array.isArray(p.ids) && p.ids.includes(current.id))
+          ) || null
+        );
       });
     }, (error) => {
       console.warn('Erro na assinatura do Firestore:', error);
       setIsLoading(false);
     });
+
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, [currentUser, isFirebase]);
+
+  // Assinatura em tempo real do Arquivo Morto
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const unsubscribe = subscribeArquivoMorto(
+      (data) => {
+        setArquivoMorto(data);
+      },
+      (error) => {
+        console.warn('Erro na assinatura do Arquivo Morto:', error);
+      }
+    );
 
     return () => {
       if (typeof unsubscribe === 'function') {
@@ -152,9 +220,48 @@ export default function App() {
     alert(`${importedList.length} prontuários importados com sucesso!`);
   };
 
+  // Ações de Arquivo Morto com Carimbo de Auditoria
+  const handleConfirmArchivePatient = async (patient, dadosArquivo) => {
+    await moverPacienteParaArquivoMorto(patient, dadosArquivo, currentUser);
+    if (
+      selectedPatient &&
+      (selectedPatient.id === patient.id ||
+        (selectedPatient.ids && patient.ids && selectedPatient.ids.some((id) => patient.ids.includes(id))))
+    ) {
+      setSelectedPatient(null);
+    }
+  };
+
+  const handleSaveManualArquivoMorto = async (registroData) => {
+    await salvarArquivoMorto(registroData, currentUser);
+  };
+
+  const handleRestoreFromArquivoMorto = async (arquivoItem) => {
+    await restaurarPacienteDoArquivoMorto(arquivoItem, currentUser);
+  };
+
+  const handleImportArquivoMortoCsv = async (registros) => {
+    return await importarArquivoMortoLote(registros, currentUser);
+  };
+
+  const handleViewArchivedHistory = (arquivoItem) => {
+    const unificado = arquivoItem?.historico?.pacienteUnificado || {};
+    const pacienteParaExibir = {
+      ...unificado,
+      ...arquivoItem,
+      observacoes: arquivoItem.observacoes || '',
+      prontuarioObservacoes: arquivoItem.observacoesCadastro || unificado.observacoes || '',
+      evolucoes: arquivoItem.evolucoes || unificado.evolucoes || [],
+      opm_list: arquivoItem.opm_list || unificado.opm_list || [],
+      cid_list: arquivoItem.cid_list || unificado.cid_list || [],
+      servicos: arquivoItem.servicos || unificado.servicos || []
+    };
+    setArchivedPatientToView(pacienteParaExibir);
+  };
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col font-sans">
-      
+
       {/* Cabeçalho */}
       <Header
         isFirebase={isFirebase}
@@ -167,11 +274,14 @@ export default function App() {
         onOpenChangePassword={() => setIsChangePasswordOpen(true)}
         onOpenUserManagement={() => setIsUserManagementOpen(true)}
         onOpenAuditLogs={() => setIsAuditLogsOpen(true)}
+        onOpenArquivoMorto={() => setIsArquivoMortoOpen(true)}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode((prev) => !prev)}
       />
 
       {/* Conteúdo Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        
+      <main className="flex-1 max-w-[1840px] w-full mx-auto px-3 sm:px-5 lg:px-8 xl:px-10 py-5 sm:py-6">
+
         {/* Banner de Aviso de Modo Local (se Firebase não estiver ativo) */}
         {!isFirebase && (
           <div className="mb-6 p-4 rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 no-print">
@@ -210,6 +320,7 @@ export default function App() {
           onSelectPatient={(p) => setSelectedPatient(p)}
           onEditPatient={handleEditPatient}
           onDeletePatient={handleDeletePatient}
+          onArchivePatient={(p) => setPatientToArchive(p)}
           onOpenEvolutionModal={handleOpenEvolutionModal}
           onPrintPatient={(p) => setPrintPatient(p)}
           activeServicoFilter={activeServicoFilter}
@@ -232,9 +343,18 @@ export default function App() {
         onClose={() => setSelectedPatient(null)}
         patient={selectedPatient}
         onEditPatient={handleEditPatient}
+        onArchivePatient={(p) => setPatientToArchive(p)}
         onOpenEvolutionModal={handleOpenEvolutionModal}
         onDeleteEvolution={handleDeleteEvolution}
         onPrintPatient={(p) => setPrintPatient(p)}
+      />
+
+      <PatientDetailsModal
+        isOpen={!!archivedPatientToView}
+        onClose={() => setArchivedPatientToView(null)}
+        patient={archivedPatientToView}
+        onPrintPatient={(p) => setPrintPatient(p)}
+        isArchived={true}
       />
 
       <EvolutionModal
@@ -273,6 +393,24 @@ export default function App() {
       <AuditLogsModal
         isOpen={isAuditLogsOpen}
         onClose={() => setIsAuditLogsOpen(false)}
+      />
+
+      {/* Modais de Arquivo Morto */}
+      <MoverParaArquivoMortoModal
+        isOpen={!!patientToArchive}
+        onClose={() => setPatientToArchive(null)}
+        patient={patientToArchive}
+        onConfirm={handleConfirmArchivePatient}
+      />
+
+      <ArquivoMortoModal
+        isOpen={isArquivoMortoOpen}
+        onClose={() => setIsArquivoMortoOpen(false)}
+        arquivoMorto={arquivoMorto}
+        onSaveManual={handleSaveManualArquivoMorto}
+        onRestore={handleRestoreFromArquivoMorto}
+        onImportCsv={handleImportArquivoMortoCsv}
+        onViewHistory={handleViewArchivedHistory}
       />
 
     </div>

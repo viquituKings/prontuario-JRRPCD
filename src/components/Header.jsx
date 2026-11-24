@@ -14,7 +14,10 @@ import {
   ShieldCheck,
   History,
   ChevronDown,
-  Shield
+  Shield,
+  Archive,
+  Sun,
+  Moon
 } from 'lucide-react';
 
 export default function Header({ 
@@ -27,7 +30,10 @@ export default function Header({
   onLogout,
   onOpenChangePassword,
   onOpenUserManagement,
-  onOpenAuditLogs
+  onOpenAuditLogs,
+  onOpenArquivoMorto,
+  isDarkMode = false,
+  onToggleDarkMode
 }) {
   const fileInputRef = useRef(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -78,7 +84,7 @@ export default function Header({
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5">
+      <div className="max-w-[1840px] w-full mx-auto px-3 sm:px-5 lg:px-8 xl:px-10 py-3.5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           
           {/* Logo e Título */}
@@ -159,6 +165,16 @@ export default function Header({
               />
             </div>
 
+            {/* Botão Arquivo Morto */}
+            <button
+              onClick={onOpenArquivoMorto}
+              title="Gerenciar Arquivo Morto"
+              className="inline-flex items-center gap-1.5 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 px-3 py-2 rounded-lg text-xs font-semibold transition"
+            >
+              <Archive className="w-4 h-4 text-amber-600" />
+              <span>Arquivo Morto</span>
+            </button>
+
             {/* Botão Novo Paciente */}
             <button
               onClick={onNewPatient}
@@ -234,6 +250,34 @@ export default function Header({
                         <History className="w-4 h-4 text-blue-600" />
                         <span>Carimbos & Auditoria</span>
                       </button>
+
+                      {/* Switch Modo Escuro / Claro */}
+                      <div className="px-4 py-2 flex items-center justify-between gap-2 border-t border-slate-100 mt-1 pt-2.5">
+                        <div className="flex items-center gap-2 text-slate-700 font-medium">
+                          {isDarkMode ? (
+                            <Moon className="w-4 h-4 text-indigo-400" />
+                          ) : (
+                            <Sun className="w-4 h-4 text-amber-500" />
+                          )}
+                          <span>Modo Escuro</span>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={isDarkMode}
+                          onClick={onToggleDarkMode}
+                          title={isDarkMode ? 'Alternar para Modo Claro' : 'Alternar para Modo Escuro'}
+                          className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                            isDarkMode ? 'bg-indigo-600' : 'bg-slate-300'
+                          }`}
+                        >
+                          <span
+                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                              isDarkMode ? 'translate-x-4' : 'translate-x-0'
+                            }`}
+                          />
+                        </button>
+                      </div>
                     </div>
 
                     <div className="pt-1 border-t border-slate-100">

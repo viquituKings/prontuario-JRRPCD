@@ -48,7 +48,11 @@ export default function AuditLogsModal({ isOpen, onClose }) {
       (l.usuarioUsername && l.usuarioUsername.toLowerCase().includes(term)) ||
       (l.pacienteNome && l.pacienteNome.toLowerCase().includes(term));
 
-    const matchAcao = filtroAcao === 'todas' || l.acao === filtroAcao;
+    const matchAcao =
+      filtroAcao === 'todas' ||
+      (filtroAcao === 'ARQUIVO_MORTO'
+        ? l.acao && l.acao.startsWith('ARQUIVO_MORTO')
+        : l.acao === filtroAcao);
 
     return matchSearch && matchAcao;
   });
@@ -75,14 +79,26 @@ export default function AuditLogsModal({ isOpen, onClose }) {
         return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-cyan-100 text-cyan-800 border border-cyan-200">Criação Usuário</span>;
       case 'EXCLUSAO_USUARIO':
         return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200">Exclusão Usuário</span>;
+      case 'ARQUIVO_MORTO_ENTRADA':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">Movido p/ Arquivo Morto</span>;
+      case 'ARQUIVO_MORTO_CADASTRO':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">Cadastro Arquivo Morto</span>;
+      case 'ARQUIVO_MORTO_EDICAO':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-orange-100 text-orange-800 border border-orange-200">Edição Arquivo Morto</span>;
+      case 'ARQUIVO_MORTO_RESTAURACAO':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">Restauração Arquivo Morto</span>;
+      case 'ARQUIVO_MORTO_EXCLUSAO':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-800 border border-red-200">Exclusão Arquivo Morto</span>;
+      case 'ARQUIVO_MORTO_IMPORTACAO':
+        return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">Importação CSV Arquivo Morto</span>;
       default:
         return <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">{acao}</span>;
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5 no-print">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl overflow-hidden border border-slate-100 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 lg:p-6 no-print">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl overflow-hidden border border-slate-100 flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95 duration-150">
         
         {/* Cabeçalho */}
         <div className="px-6 py-4 bg-gradient-to-r from-slate-900 via-slate-800 to-indigo-950 text-white flex items-center justify-between">
@@ -132,6 +148,7 @@ export default function AuditLogsModal({ isOpen, onClose }) {
               <option value="EXCLUSAO_PACIENTE">Exclusão de Paciente</option>
               <option value="NOVO_PRONTUARIO">Novo Prontuário</option>
               <option value="EXCLUSAO_PRONTUARIO">Exclusão de Prontuário</option>
+              <option value="ARQUIVO_MORTO">Arquivo Morto</option>
               <option value="LOGIN">Logins</option>
               <option value="TROCA_SENHA">Troca de Senha</option>
               <option value="CRIACAO_USUARIO">Gestão de Usuários</option>
@@ -177,6 +194,28 @@ export default function AuditLogsModal({ isOpen, onClose }) {
                     <p className="text-xs text-slate-700 leading-relaxed font-medium">
                       {item.detalhes}
                     </p>
+
+                    {item.dadosArquivoMorto && (
+                      <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] bg-amber-50/80 border border-amber-200 rounded-xl px-2.5 py-1.5 text-amber-950">
+                        <span><strong>Paciente:</strong> {item.dadosArquivoMorto.nome}</span>
+                        <span>•</span>
+                        <span><strong>DN:</strong> {item.dadosArquivoMorto.dn || 'Não informada'}</span>
+                        <span>•</span>
+                        <span><strong>Data de Saída:</strong> {item.dadosArquivoMorto.dataSaida || '-'}</span>
+                        {item.dadosArquivoMorto.pasta && (
+                          <>
+                            <span>•</span>
+                            <span><strong>Pasta:</strong> {item.dadosArquivoMorto.pasta}</span>
+                          </>
+                        )}
+                        {item.dadosArquivoMorto.observacoes && (
+                          <>
+                            <span>•</span>
+                            <span><strong>Obs.:</strong> {item.dadosArquivoMorto.observacoes}</span>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-1.5 text-[11px] font-semibold text-slate-500 shrink-0 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200">

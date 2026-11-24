@@ -38,13 +38,14 @@ export async function registrarAuditoria({
   detalhes,
   usuario,
   pacienteId = '',
-  pacienteNome = ''
+  pacienteNome = '',
+  dadosArquivoMorto = null
 }) {
   const db = getDb();
   const now = new Date();
   const logItem = {
     id: `audit_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-    acao, // 'LOGIN' | 'LOGOUT' | 'CADASTRO_PACIENTE' | 'ALTERACAO_PACIENTE' | 'EXCLUSAO_PACIENTE' | 'NOVO_PRONTUARIO' | 'EXCLUSAO_PRONTUARIO' | 'TROCA_SENHA' | 'CRIACAO_USUARIO' | 'EDICAO_USUARIO' | 'EXCLUSAO_USUARIO'
+    acao, // 'LOGIN' | 'LOGOUT' | 'CADASTRO_PACIENTE' | 'ALTERACAO_PACIENTE' | 'EXCLUSAO_PACIENTE' | 'NOVO_PRONTUARIO' | 'EXCLUSAO_PRONTUARIO' | 'ARQUIVO_MORTO_ENTRADA' | 'ARQUIVO_MORTO_CADASTRO' | 'ARQUIVO_MORTO_EDICAO' | 'ARQUIVO_MORTO_RESTAURACAO' | 'ARQUIVO_MORTO_EXCLUSAO' | 'TROCA_SENHA' | 'CRIACAO_USUARIO' | 'EDICAO_USUARIO' | 'EXCLUSAO_USUARIO'
     detalhes: detalhes || '',
     usuarioUsername: usuario?.username || 'sistema',
     usuarioNome: usuario?.nome || usuario?.username || 'Sistema',
@@ -61,6 +62,10 @@ export async function registrarAuditoria({
       second: '2-digit'
     })
   };
+
+  if (dadosArquivoMorto) {
+    logItem.dadosArquivoMorto = dadosArquivoMorto;
+  }
 
   // Salva no Firestore se disponível
   if (db) {
