@@ -30,6 +30,28 @@ export function getBadgeColorServico(servico) {
   }
 }
 
+/**
+ * Retorna o rótulo de identificação da evolução conforme o tipo de solicitação/registro
+ */
+export function getLabelIdentificacaoEvolucao(evo) {
+  if (!evo) return 'Evolução';
+  if (evo.tipoRegistro === 'OPM') return 'Dispositivo OPM';
+  if (evo.categoriaServico) {
+    switch (evo.categoriaServico) {
+      case 'Reab. Fisica':
+        return 'Reab. Física';
+      case 'Reabilitação Visual':
+        return 'Reab. Visual';
+      case 'Neonato de risco':
+        return 'Neonato de Risco';
+      default:
+        return evo.categoriaServico;
+    }
+  }
+  if (evo.tipoRegistro === 'Intelectual') return 'Reab. Intelectual';
+  return 'Evolução';
+}
+
 export const TIPOS_OPM = [
   'MEIO AUXILIAR DE LOCOMOÇÃO',
   'CADEIRA DE RODAS',

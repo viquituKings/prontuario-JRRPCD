@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { X, Archive, AlertTriangle, Calendar, FileText, User, FolderOpen } from 'lucide-react';
-import { formatarMascaraData, getHojeBR } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { X, Archive, AlertTriangle, Calendar, FileText, User, FolderOpen, Layers } from 'lucide-react';
+import { formatarMascaraData, getHojeBR, getBadgeColorServico } from '../types';
+import { isEvolucaoOpm } from '../firebase';
 
 export default function MoverParaArquivoMortoModal({
   isOpen,
@@ -13,7 +14,33 @@ export default function MoverParaArquivoMortoModal({
   const [dataSaida, setDataSaida] = useState('');
   const [pasta, setPasta] = useState('');
   const [observacoes, setObservacoes] = useState('');
+  const [modoArquivamento, setModoArquivamento] = useState('completo');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const analiseSolicitacoes = useMemo(() => {
+    if (!patient) {
+      return { hasOpmAndOutros: false, outrosServicos: [], totalOpmEvo: 0, totalOutrosEvo: 0, todosServicos: [] };
+    }
+    const registros = Array.isArray(patient.registros) && patient.registros.length > 0
+      ? patient.registros
+      : [patient];
+    const todosServicos = Array.isArray(patient.servicos) && patient.servicos.length > 0
+      ? patient.servicos
+      : [patient.servico_especializado || 'OPM'];
+    const temOpm = todosServicos.includes('OPM') || registros.some((r) => (r.servico_especializado || 'OPM') === 'OPM');
+    const outrosServicos = todosServicos.filter((s) => s !== 'OPM');
+    const evolucoes = Array.isArray(patient.evolucoes) ? patient.evolucoes : [];
+    const totalOpmEvo = evolucoes.filter(isEvolucaoOpm).length;
+    const totalOutrosEvo = evolucoes.length - totalOpmEvo;
+
+    return {
+      hasOpmAndOutros: temOpm && outrosServicos.length > 0,
+      outrosServicos,
+      totalOpmEvo,
+      totalOutrosEvo,
+      todosServicos
+    };
+  }, [patient]);
 
   useEffect(() => {
     if (isOpen && patient) {
@@ -22,9 +49,10 @@ export default function MoverParaArquivoMortoModal({
       setDataSaida(getHojeBR());
       setPasta('');
       setObservacoes('');
+      setModoArquivamento(analiseSolicitacoes.hasOpmAndOutros ? 'apenas_outras' : 'completo');
       setIsSubmitting(false);
     }
-  }, [isOpen, patient]);
+  }, [isOpen, patient, analiseSolicitacoes.hasOpmAndOutros]);
 
   if (!isOpen || !patient) return null;
 
@@ -49,7 +77,8 @@ export default function MoverParaArquivoMortoModal({
         dn: dn.trim(),
         dataSaida: dataSaida.trim(),
         pasta: pasta.trim(),
-        observacoes: observacoes.trim()
+        observacoes: observacoes.trim(),
+        modoArquivamento: analiseSolicitacoes.hasOpmAndOutros ? modoArquivamento : 'completo'
       });
       onClose();
     } catch (err) {
@@ -92,13 +121,71 @@ export default function MoverParaArquivoMortoModal({
           {/* Aviso de Preservação de Histórico */}
           <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 flex items-start gap-2.5">
             <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div className="space-y-0.5 leading-relaxed">
+            <div className="space-y-1 leading-relaxed">
               <p className="font-bold">Preservação integral do histórico clínico</p>
               <p className="text-[11px] text-amber-800">
-                Serão arquivados e preservados <strong>{totalServicos}</strong> {totalServicos === 1 ? 'serviço registrado' : 'serviços registrados'} e <strong>{totalEvolucoes}</strong> {totalEvolucoes === 1 ? 'evolução clínica' : 'evoluções clínicas'}. Esta ação será registrada nos logs de auditoria.
+                Solicitações atuais: <strong>{analiseSolicitacoes.todosServicos.join(', ')}</strong> •{' '}
+                <strong>{totalServicos}</strong> {totalServicos === 1 ? 'registro' : 'registros'} e <strong>{totalEvolucoes}</strong> {totalEvolucoes === 1 ? 'evolução clínica' : 'evoluções clínicas'}.
               </p>
             </div>
           </div>
+
+          {/* Opção de Arquivamento Seletivo quando possui OPM + outras solicitações */}
+          {analiseSolicitacoes.hasOpmAndOutros && (
+            <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-blue-900 uppercase tracking-wider">
+                <Layers className="w-3.5 h-3.5 text-blue-600" />
+                <span>Paciente possui OPM + outras solicitações</span>
+              </div>
+
+              <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
+                modoArquivamento === 'apenas_outras'
+                  ? 'bg-white border-blue-500 ring-1 ring-blue-500'
+                  : 'bg-white/60 border-slate-200 hover:bg-white'
+              }`}>
+                <input
+                  type="radio"
+                  name="modoArquivamento"
+                  value="apenas_outras"
+                  checked={modoArquivamento === 'apenas_outras'}
+                  onChange={() => setModoArquivamento('apenas_outras')}
+                  className="mt-0.5 accent-blue-600"
+                />
+                <div className="space-y-0.5 text-[11px]">
+                  <span className="font-bold text-slate-900 block">
+                    Arquivar apenas outras solicitações (manter OPM ativa)
+                  </span>
+                  <span className="text-slate-600 block">
+                    Vai para o Arquivo Morto: <strong>{analiseSolicitacoes.outrosServicos.join(', ')}</strong> ({analiseSolicitacoes.totalOutrosEvo} evol.).{' '}
+                    Permanece ativo na lista principal: <strong>OPM</strong> ({analiseSolicitacoes.totalOpmEvo} evol.).
+                  </span>
+                </div>
+              </label>
+
+              <label className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition ${
+                modoArquivamento === 'completo'
+                  ? 'bg-white border-amber-500 ring-1 ring-amber-500'
+                  : 'bg-white/60 border-slate-200 hover:bg-white'
+              }`}>
+                <input
+                  type="radio"
+                  name="modoArquivamento"
+                  value="completo"
+                  checked={modoArquivamento === 'completo'}
+                  onChange={() => setModoArquivamento('completo')}
+                  className="mt-0.5 accent-amber-600"
+                />
+                <div className="space-y-0.5 text-[11px]">
+                  <span className="font-bold text-slate-900 block">
+                    Arquivar cadastro completo (todas as solicitações)
+                  </span>
+                  <span className="text-slate-600 block">
+                    Remove o paciente da lista principal levando OPM e demais solicitações para o Arquivo Morto.
+                  </span>
+                </div>
+              </label>
+            </div>
+          )}
 
           {/* Nome do Paciente */}
           <div>

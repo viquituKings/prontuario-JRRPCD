@@ -28,6 +28,7 @@ import {
   isMotorizadaSolicitada,
   verificarCompatibilidadeMotorizada,
   getBadgeColorServico,
+  getLabelIdentificacaoEvolucao,
   temOpmSolicitada,
   extrairDispositivosDeferidos
 } from '../types';
@@ -443,9 +444,18 @@ export default function PatientDetailsModal({
                     <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2 hover:border-teal-200 transition">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-slate-100 pb-2">
                         <div className="flex items-center flex-wrap gap-1.5">
-                          {evo.tipoRegistro && (
-                            <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-700 text-[10px] font-bold uppercase rounded border border-slate-200">
-                              {evo.tipoRegistro === 'OPM' ? 'Dispositivo OPM' : evo.tipoRegistro === 'Intelectual' ? 'Reab. Intelectual' : 'Evolução'}
+                          {(evo.tipoRegistro || evo.categoriaServico) && (
+                            <span
+                              className={`inline-block px-2 py-0.5 text-[10px] font-bold uppercase rounded border ${getBadgeColorServico(
+                                evo.categoriaServico ||
+                                  (evo.tipoRegistro === 'OPM'
+                                    ? 'OPM'
+                                    : evo.tipoRegistro === 'Intelectual'
+                                      ? 'Reab. Intelectual'
+                                      : '')
+                              )}`}
+                            >
+                              {getLabelIdentificacaoEvolucao(evo)}
                             </span>
                           )}
                           {evo.tipoAtendimento && (

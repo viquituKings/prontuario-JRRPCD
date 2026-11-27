@@ -5,7 +5,8 @@ import {
   isMotorizadaSolicitada,
   verificarCompatibilidadeMotorizada,
   temOpmSolicitada,
-  extrairDispositivosDeferidos
+  extrairDispositivosDeferidos,
+  getLabelIdentificacaoEvolucao
 } from './types';
 
 function loadLogoDataUrl() {
@@ -337,12 +338,7 @@ export async function gerarProntuarioPdf(patient) {
       doc.setDrawColor(226, 232, 240);
       doc.roundedRect(margin, y, contentWidth, 6.5, 1, 1, 'FD');
 
-      const tipoReg =
-        evo.tipoRegistro === 'OPM'
-          ? 'Dispositivo OPM'
-          : evo.tipoRegistro === 'Intelectual'
-            ? 'Reab. Intelectual'
-            : 'Evolução Clínica';
+      const tipoReg = getLabelIdentificacaoEvolucao(evo);
       const dataEvo = formatarDataBR(evo.data || evo.dataHora);
       const cabecalhoEsq = `${i + 1}. ${tipoReg}${evo.tipoAtendimento ? ` • ${evo.tipoAtendimento}` : ''}`;
       const cabecalhoDir = `${dataEvo}${evo.profissional ? ` • Prof.: ${evo.profissional}` : ''}`;

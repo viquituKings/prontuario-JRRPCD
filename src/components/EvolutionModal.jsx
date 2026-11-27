@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   X,
   Calendar,
@@ -8,7 +8,8 @@ import {
   PlusCircle,
   Trash2,
   Brain,
-  FileText
+  FileText,
+  Layers
 } from 'lucide-react';
 import { OPMS_SUGERIDAS, formatarDataBR, temOpmSolicitada } from '../types';
 
@@ -21,15 +22,32 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
     return `${year}-${month}-${day}`;
   };
 
-  // Identificação do tipo de serviço do paciente
-  const servico = patient?.servico_especializado || 'OPM';
+  // Lista de solicitações / serviços associados ao paciente
+  const solicitacoesDoPaciente = useMemo(() => {
+    if (!patient) return [];
+    const lista = Array.isArray(patient.servicos) && patient.servicos.length > 0
+      ? [...patient.servicos]
+      : [patient.servico_especializado || 'OPM'];
+    if (temOpmSolicitada(patient) && !lista.includes('OPM')) {
+      lista.unshift('OPM');
+    }
+    return Array.from(new Set(lista.filter(Boolean)));
+  }, [patient]);
 
-  // Regra fundamental: o preenchimento de dispositivos deferidos está disponível
-  // para pacientes com OPM solicitada, porém o deferimento é OPCIONAL
+  const [servicoSelecionado, setServicoSelecionado] = useState('');
+
+  const servicoAtual =
+    (servicoSelecionado && solicitacoesDoPaciente.includes(servicoSelecionado)
+      ? servicoSelecionado
+      : solicitacoesDoPaciente[0]) ||
+    patient?.servico_especializado ||
+    'OPM';
+
   const hasOpmSolicitada = temOpmSolicitada(patient);
 
-  const isOPM = hasOpmSolicitada;
-  const isIntelectual = !isOPM && servico === 'Reab. Intelectual';
+  // Ajusta dinamicamente o comportamento do modal conforme a solicitação selecionada
+  const isOPM = servicoAtual === 'OPM';
+  const isIntelectual = servicoAtual === 'Reab. Intelectual';
   const isFisicaVisualNeonato = !isOPM && !isIntelectual;
 
   // Lista de OPMs solicitadas pelo paciente
@@ -84,8 +102,9 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
   useEffect(() => {
     if (isOpen) {
       resetForm();
+      setServicoSelecionado(solicitacoesDoPaciente[0] || patient?.servico_especializado || 'OPM');
     }
-  }, [isOpen, patient?.id]);
+  }, [isOpen, patient?.id, solicitacoesDoPaciente]);
 
   if (!isOpen || !patient) return null;
 
@@ -142,6 +161,11 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
       const dataIso = formData.data ? `${formData.data}T12:00:00` : new Date().toISOString();
       const obsTrim = formData.observacao.trim();
 
+      const targetRegistro = Array.isArray(patient.registros)
+        ? patient.registros.find((r) => (r.servico_especializado || 'OPM') === servicoAtual)
+        : null;
+      const targetPatientId = targetRegistro?.id || patient.id;
+
       if (isOPM) {
         // Validação Caso OPM: deferimento é opcional
         const cleanDispositivos = formData.dispositivos
@@ -177,7 +201,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
             : obsTrim
         };
 
-        await onSave(patient.id, payload);
+        await onSave(targetPatientId, payload);
       } else if (isIntelectual) {
         // Validação Caso Intelectual: modalidade é opcional
         const opcao = formData.opcaoIntelectual;
@@ -203,7 +227,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
             : obsTrim
         };
 
-        await onSave(patient.id, payload);
+        await onSave(targetPatientId, payload);
       } else {
         // Validação Caso Reabilitação Física, Visual e Neonato de Risco
         if (!obsTrim) {
@@ -214,14 +238,14 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
 
         const payload = {
           tipoRegistro: 'Evolucao',
-          categoriaServico: servico,
+          categoriaServico: servicoAtual,
           data: formData.data,
           dataHora: dataIso,
           observacao: obsTrim,
           descricao: obsTrim
         };
 
-        await onSave(patient.id, payload);
+        await onSave(targetPatientId, payload);
       }
 
       // Limpa os campos do formulário após confirmação e salvamento
@@ -249,7 +273,7 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
               <span>Paciente: <strong className="text-white">{patient.nome}</strong></span>
               <span>•</span>
               <span className="bg-white/20 text-white px-2 py-0.5 rounded text-[10px] font-bold">
-                {servico}
+                {servicoAtual}
               </span>
               {hasOpmSolicitada && (
                 <span className="bg-amber-400 text-amber-950 px-2 py-0.5 rounded text-[10px] font-bold">
@@ -274,6 +298,33 @@ export default function EvolutionModal({ isOpen, onClose, onSave, patient }) {
           {errorMsg && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl font-medium">
               {errorMsg}
+            </div>
+          )}
+
+          {/* Seletor de Solicitação quando o paciente possui mais de uma */}
+          {solicitacoesDoPaciente.length > 1 && (
+            <div className="p-3.5 bg-teal-50/70 border border-teal-200 rounded-2xl space-y-1.5">
+              <label className="block text-[11px] font-bold text-teal-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-teal-600" />
+                <span>Solicitação a Evoluir *</span>
+              </label>
+              <select
+                value={servicoAtual}
+                onChange={(e) => {
+                  setServicoSelecionado(e.target.value);
+                  setErrorMsg('');
+                }}
+                className="w-full bg-white border border-teal-300 rounded-xl px-3.5 py-2 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              >
+                {solicitacoesDoPaciente.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-teal-700">
+                Os campos abaixo se ajustam automaticamente conforme a solicitação selecionada.
+              </p>
             </div>
           )}
 

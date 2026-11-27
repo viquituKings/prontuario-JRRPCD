@@ -19,7 +19,15 @@ import {
   ArrowUpDown,
   RotateCw
 } from 'lucide-react';
-import { formatarMascaraData, formatarDataHoraBR, formatarDataBR, getHojeBR, normalizarTexto } from '../types';
+import {
+  formatarMascaraData,
+  formatarDataHoraBR,
+  formatarDataBR,
+  getHojeBR,
+  normalizarTexto,
+  SERVICOS_ESPECIALIZADOS,
+  getBadgeColorServico
+} from '../types';
 
 function parseDataTimestamp(dataStr) {
   if (!dataStr) return 0;
@@ -93,6 +101,7 @@ function parseArquivoMortoCsv(text) {
   const idxDn = findColIndex(['DATA_NASCIMENTO', 'NASCIMENTO', 'DN', 'DT_NASC']);
   const idxSaida = findColIndex(['DATA_SAIDA', 'SAIDA', 'DT_SAIDA']);
   const idxPasta = findColIndex(['PASTA', 'ARQUIVO_FISICO', 'LOCALIZACAO', 'CAIXA']);
+  const idxServ = findColIndex(['TIPO_SOLICITACAO', 'SOLICITACAO', 'SERVICO', 'SERVICOS']);
   const idxObs = findColIndex(['OBSERVACOES', 'OBSERVACAO', 'MOTIVO', 'OBS', 'DETALHES']);
 
   if (idxNome === -1) {
@@ -100,6 +109,13 @@ function parseArquivoMortoCsv(text) {
       'Coluna de nome do paciente não encontrada. Use o modelo CSV com a coluna "nome_paciente".'
     );
   }
+
+  const mapearServico = (raw) => {
+    const norm = normalizarTexto(raw);
+    if (!norm) return null;
+    const match = SERVICOS_ESPECIALIZADOS.find((s) => normalizarTexto(s) === norm);
+    return match || raw.trim();
+  };
 
   const validos = [];
   const avisos = [];
@@ -111,6 +127,10 @@ function parseArquivoMortoCsv(text) {
     const dataSaidaRaw = idxSaida >= 0 ? normalizarDataCsv(cols[idxSaida]) : '';
     const dataSaida = dataSaidaRaw || getHojeBR();
     const pasta = idxPasta >= 0 ? (cols[idxPasta] || '').trim().toUpperCase() : '';
+    const servRaw = idxServ >= 0 ? (cols[idxServ] || '').trim() : '';
+    const servicos = servRaw
+      ? Array.from(new Set(servRaw.split(/[,|/]/).map(mapearServico).filter(Boolean)))
+      : [];
     const observacoes = idxObs >= 0 ? (cols[idxObs] || '').trim() : '';
 
     if (!nome) {
@@ -123,6 +143,7 @@ function parseArquivoMortoCsv(text) {
       dn,
       dataSaida,
       pasta,
+      servicos,
       observacoes
     });
   }
@@ -142,7 +163,10 @@ export default function ArquivoMortoModal({
   const csvInputRef = useRef(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroPasta, setFiltroPasta] = useState('todas');
+  const [filtroServico, setFiltroServico] = useState('todos');
   const [filtroOrigem, setFiltroOrigem] = useState('todos');
+  const [filtroDataInicio, setFiltroDataInicio] = useState('');
+  const [filtroDataFim, setFiltroDataFim] = useState('');
   const [ordenacao, setOrdenacao] = useState('alfabetica_az');
   const [showForm, setShowForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -154,6 +178,7 @@ export default function ArquivoMortoModal({
   const [dn, setDn] = useState('');
   const [dataSaida, setDataSaida] = useState('');
   const [pasta, setPasta] = useState('');
+  const [servicosSelecionados, setServicosSelecionados] = useState([]);
   const [observacoes, setObservacoes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
@@ -193,12 +218,40 @@ export default function ArquivoMortoModal({
         filtroPasta === 'todas' ||
         (filtroPasta === 'sem_pasta' ? !pastaItem : pastaItem === filtroPasta);
 
+      const itemServicos = Array.isArray(item.servicos) && item.servicos.length > 0
+        ? item.servicos
+        : item.servico_especializado
+          ? [item.servico_especializado]
+          : [];
+      const matchServico =
+        filtroServico === 'todos' ||
+        (filtroServico === 'sem_servico' ? itemServicos.length === 0 : itemServicos.includes(filtroServico));
+
       const possuiHist = temHistoricoCompleto(item);
       const matchOrigem =
         filtroOrigem === 'todos' ||
         (filtroOrigem === 'com_historico' ? possuiHist : !possuiHist);
 
-      return matchSearch && matchPasta && matchOrigem;
+      let matchPeriodo = true;
+      if (filtroDataInicio || filtroDataFim) {
+        const tsSaida = parseDataTimestamp(item.dataSaida);
+        if (!tsSaida) {
+          matchPeriodo = false;
+        } else {
+          if (filtroDataInicio) {
+            const [y, m, d] = filtroDataInicio.split('-').map(Number);
+            const tsIni = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+            if (tsSaida < tsIni) matchPeriodo = false;
+          }
+          if (filtroDataFim && matchPeriodo) {
+            const [y, m, d] = filtroDataFim.split('-').map(Number);
+            const tsFim = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+            if (tsSaida > tsFim) matchPeriodo = false;
+          }
+        }
+      }
+
+      return matchSearch && matchPasta && matchServico && matchOrigem && matchPeriodo;
     });
 
     return [...filtrados].sort((a, b) => {
@@ -228,7 +281,7 @@ export default function ArquivoMortoModal({
           return (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' });
       }
     });
-  }, [arquivoMorto, searchTerm, filtroPasta, filtroOrigem, ordenacao]);
+  }, [arquivoMorto, searchTerm, filtroPasta, filtroServico, filtroOrigem, filtroDataInicio, filtroDataFim, ordenacao]);
 
   if (!isOpen) return null;
 
@@ -238,6 +291,7 @@ export default function ArquivoMortoModal({
     setDn('');
     setDataSaida(getHojeBR());
     setPasta('');
+    setServicosSelecionados([]);
     setObservacoes('');
     setShowForm(true);
   };
@@ -248,8 +302,20 @@ export default function ArquivoMortoModal({
     setDn(item.dn || item.dataNascimento || '');
     setDataSaida(item.dataSaida || '');
     setPasta(item.pasta || '');
+    const servs = Array.isArray(item.servicos) && item.servicos.length > 0
+      ? item.servicos
+      : item.servico_especializado
+        ? [item.servico_especializado]
+        : [];
+    setServicosSelecionados(servs);
     setObservacoes(item.observacoes || '');
     setShowForm(true);
+  };
+
+  const toggleServicoSelecionado = (servico) => {
+    setServicosSelecionados((prev) =>
+      prev.includes(servico) ? prev.filter((s) => s !== servico) : [...prev, servico]
+    );
   };
 
   const fecharFormulario = () => {
@@ -276,6 +342,7 @@ export default function ArquivoMortoModal({
         dn: dn.trim(),
         dataSaida: dataSaida.trim(),
         pasta: pasta.trim(),
+        servicos: servicosSelecionados,
         observacoes: observacoes.trim()
       });
       fecharFormulario();
@@ -290,20 +357,26 @@ export default function ArquivoMortoModal({
   const handleLimparFiltros = () => {
     setSearchTerm('');
     setFiltroPasta('todas');
+    setFiltroServico('todos');
     setFiltroOrigem('todos');
+    setFiltroDataInicio('');
+    setFiltroDataFim('');
     setOrdenacao('alfabetica_az');
   };
 
   const temFiltroAtivo =
     searchTerm.trim() !== '' ||
     filtroPasta !== 'todas' ||
+    filtroServico !== 'todos' ||
     filtroOrigem !== 'todos' ||
+    filtroDataInicio !== '' ||
+    filtroDataFim !== '' ||
     ordenacao !== 'alfabetica_az';
 
   const handleDownloadModeloCsv = () => {
     const linhas = [
-      'nome_paciente;data_nascimento;data_saida;pasta;observacoes',
-      `MARIA DA SILVA SANTOS;15/03/1980;${getHojeBR()};PASTA 01;Alta clínica concluída (linha de exemplo - substitua pelos seus dados)`
+      'nome_paciente;data_nascimento;data_saida;pasta;tipo_solicitacao;observacoes',
+      `MARIA DA SILVA SANTOS;15/03/1980;${getHojeBR()};PASTA 01;Reab. Fisica;Alta clínica concluída (linha de exemplo - substitua pelos seus dados)`
     ];
     const csvContent = '\uFEFF' + linhas.join('\r\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -479,6 +552,21 @@ export default function ArquivoMortoModal({
             </select>
 
             <select
+              value={filtroServico}
+              onChange={(e) => setFiltroServico(e.target.value)}
+              title="Filtrar por tipo de solicitação"
+              className="text-xs bg-white border border-slate-300 rounded-xl px-2.5 py-1.5 font-semibold text-slate-700 outline-none focus:ring-2 focus:ring-amber-500"
+            >
+              <option value="todos">Todas as Solicitações</option>
+              <option value="sem_servico">Sem solicitação informada</option>
+              {SERVICOS_ESPECIALIZADOS.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+
+            <select
               value={filtroOrigem}
               onChange={(e) => setFiltroOrigem(e.target.value)}
               title="Filtrar por tipo de registro"
@@ -488,6 +576,26 @@ export default function ArquivoMortoModal({
               <option value="com_historico">Com histórico clínico salvo</option>
               <option value="sem_historico">Registro manual / Planilha CSV</option>
             </select>
+
+            {/* Filtro por Período (Data de Saída) */}
+            <div className="flex items-center gap-1.5 bg-white border border-slate-300 rounded-xl px-2.5 py-1">
+              <span className="text-[10px] font-bold text-slate-500 uppercase">Saída:</span>
+              <input
+                type="date"
+                value={filtroDataInicio}
+                onChange={(e) => setFiltroDataInicio(e.target.value)}
+                title="Data de saída inicial"
+                className="text-xs font-semibold text-slate-700 bg-transparent outline-none"
+              />
+              <span className="text-[10px] text-slate-400">até</span>
+              <input
+                type="date"
+                value={filtroDataFim}
+                onChange={(e) => setFiltroDataFim(e.target.value)}
+                title="Data de saída final"
+                className="text-xs font-semibold text-slate-700 bg-transparent outline-none"
+              />
+            </div>
 
             {temFiltroAtivo && (
               <button
@@ -554,6 +662,7 @@ export default function ArquivoMortoModal({
                     <th className="px-3 py-2">Data Nasc.</th>
                     <th className="px-3 py-2">Data Saída</th>
                     <th className="px-3 py-2">Pasta</th>
+                    <th className="px-3 py-2">Solicitação</th>
                     <th className="px-3 py-2">Observações</th>
                   </tr>
                 </thead>
@@ -564,7 +673,8 @@ export default function ArquivoMortoModal({
                       <td className="px-3 py-2 text-slate-600">{row.dn || '-'}</td>
                       <td className="px-3 py-2 text-amber-800 font-semibold">{row.dataSaida || '-'}</td>
                       <td className="px-3 py-2 text-slate-700 font-semibold">{row.pasta || '-'}</td>
-                      <td className="px-3 py-2 text-slate-600 truncate max-w-[200px]">{row.observacoes || '-'}</td>
+                      <td className="px-3 py-2 text-slate-700">{row.servicos?.join(', ') || '-'}</td>
+                      <td className="px-3 py-2 text-slate-600 truncate max-w-[180px]">{row.observacoes || '-'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -653,6 +763,32 @@ export default function ArquivoMortoModal({
               </div>
             </div>
 
+            {/* Tipo de Solicitação / Serviço */}
+            <div>
+              <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1.5">
+                Tipo de Solicitação / Serviço
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {SERVICOS_ESPECIALIZADOS.map((servico) => {
+                  const ativo = servicosSelecionados.includes(servico);
+                  return (
+                    <button
+                      key={servico}
+                      type="button"
+                      onClick={() => toggleServicoSelecionado(servico)}
+                      className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition ${
+                        ativo
+                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
+                          : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
+                      }`}
+                    >
+                      {ativo ? `✓ ${servico}` : servico}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div>
               <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
                 Observações / Motivo (Opcional)
@@ -725,6 +861,22 @@ export default function ArquivoMortoModal({
                             Registro Manual
                           </span>
                         )}
+
+                        {(() => {
+                          const servs = Array.isArray(item.servicos) && item.servicos.length > 0
+                            ? item.servicos
+                            : item.servico_especializado
+                              ? [item.servico_especializado]
+                              : [];
+                          return servs.map((s, sIdx) => (
+                            <span
+                              key={sIdx}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${getBadgeColorServico(s)}`}
+                            >
+                              {s}
+                            </span>
+                          ));
+                        })()}
                       </div>
 
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">

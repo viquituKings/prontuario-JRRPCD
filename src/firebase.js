@@ -318,6 +318,11 @@ export async function importarArquivoMortoLote(registros = [], usuario = null) {
     const dataSaidaFinal = (reg.dataSaida || '').trim();
     const pastaFinal = (reg.pasta || '').trim().toUpperCase();
     const obsFinal = (reg.observacoes || '').trim();
+    const servicosFinal = Array.isArray(reg.servicos)
+      ? reg.servicos.filter(Boolean)
+      : reg.servico_especializado
+        ? [reg.servico_especializado]
+        : [];
 
     return sanitizeValue({
       id,
@@ -326,6 +331,8 @@ export async function importarArquivoMortoLote(registros = [], usuario = null) {
       dataNascimento: dnFinal,
       dataSaida: dataSaidaFinal,
       pasta: pastaFinal,
+      servicos: servicosFinal,
+      servico_especializado: servicosFinal[0] || '',
       observacoes: obsFinal,
       origem: 'importacao_csv',
       arquivadoPor: userUsername,
@@ -643,12 +650,22 @@ export function subscribeArquivoMorto(onUpdate, onError) {
   }
 }
 
+export function isEvolucaoOpm(evo) {
+  if (!evo) return false;
+  if (evo.categoriaServico === 'OPM') return true;
+  if (evo.tipoRegistro === 'OPM') return true;
+  if (Array.isArray(evo.dispositivosDeferidos) && evo.dispositivosDeferidos.length > 0) return true;
+  if (typeof evo.descricaoDispositivo === 'string' && evo.descricaoDispositivo.trim().length > 0) return true;
+  if (typeof evo.descricao === 'string' && evo.descricao.includes('Dispositivo(s) Deferido(s):')) return true;
+  return false;
+}
+
 /**
- * Move um paciente ativo (e todos os seus registros de serviço e histórico clínico) para o Arquivo Morto
+ * Move um paciente ativo (ou apenas suas solicitações não-OPM) para o Arquivo Morto
  */
 export async function moverPacienteParaArquivoMorto(
   paciente,
-  { nome, dn, dataSaida, pasta = '', observacoes = '' },
+  { nome, dn, dataSaida, pasta = '', observacoes = '', modoArquivamento = 'completo' },
   usuario = null
 ) {
   const db = getDb();
@@ -671,7 +688,36 @@ export async function moverPacienteParaArquivoMorto(
     : paciente ? [paciente] : [];
 
   const { registros: _omitRegistros, ...pacienteSemRegistros } = paciente || {};
-  const evolucoes = Array.isArray(paciente?.evolucoes) ? paciente.evolucoes : [];
+  const todasEvolucoes = Array.isArray(paciente?.evolucoes) ? paciente.evolucoes : [];
+
+  const isParcialSemOpm = modoArquivamento === 'apenas_outras';
+
+  const registrosOpm = registrosOriginais.filter((r) => (r.servico_especializado || 'OPM') === 'OPM');
+  const registrosOutros = registrosOriginais.filter((r) => (r.servico_especializado || 'OPM') !== 'OPM');
+
+  const registrosParaArquivar = isParcialSemOpm ? registrosOutros : registrosOriginais;
+  const evolucoesParaArquivar = isParcialSemOpm
+    ? todasEvolucoes.filter((e) => !isEvolucaoOpm(e))
+    : todasEvolucoes;
+  const evolucoesParaManterOpm = isParcialSemOpm
+    ? todasEvolucoes.filter((e) => isEvolucaoOpm(e))
+    : [];
+
+  const servicosArquivados = isParcialSemOpm
+    ? Array.from(
+        new Set(
+          registrosOutros.length > 0
+            ? registrosOutros.map((r) => r.servico_especializado).filter(Boolean)
+            : (paciente?.servicos || []).filter((s) => s !== 'OPM')
+        )
+      )
+    : Array.from(
+        new Set(
+          paciente?.servicos && paciente.servicos.length > 0
+            ? paciente.servicos
+            : [paciente?.servico_especializado || 'OPM'].filter(Boolean)
+        )
+      );
 
   const archivePayload = sanitizeValue({
     id: archiveId,
@@ -682,6 +728,7 @@ export async function moverPacienteParaArquivoMorto(
     pasta: pastaFinal,
     observacoes: obsFinal,
     origem: 'paciente_ativo',
+    modoArquivamento: isParcialSemOpm ? 'parcial_sem_opm' : 'completo',
     // Dados cadastrais e clínicos preservados
     cpf: paciente?.cpf || '',
     nome_mae: paciente?.nome_mae || paciente?.nomeMae || '',
@@ -691,18 +738,25 @@ export async function moverPacienteParaArquivoMorto(
     esf: paciente?.esf || '',
     data_entrada: paciente?.data_entrada || paciente?.dataEntrada || '',
     idade: paciente?.idade || '',
-    servico_especializado: paciente?.servico_especializado || '',
-    servicos: paciente?.servicos || (paciente?.servico_especializado ? [paciente.servico_especializado] : []),
+    servico_especializado: servicosArquivados[0] || '',
+    servicos: servicosArquivados,
     cid: paciente?.cid || '',
     cid_list: paciente?.cid_list || [],
-    opm_list: paciente?.opm_list || [],
-    tipoOpm: paciente?.tipoOpm || '',
+    opm_list: isParcialSemOpm ? [] : (paciente?.opm_list || []),
+    tipoOpm: isParcialSemOpm ? '' : (paciente?.tipoOpm || ''),
     observacoesCadastro: paciente?.observacoes || '',
-    evolucoes,
+    evolucoes: evolucoesParaArquivar,
     historico: {
-      totalServicos: paciente?.totalServicos || registrosOriginais.length || 1,
-      registrosOriginais,
-      pacienteUnificado: pacienteSemRegistros
+      totalServicos: registrosParaArquivar.length || servicosArquivados.length || 1,
+      registrosOriginais: registrosParaArquivar,
+      pacienteUnificado: {
+        ...pacienteSemRegistros,
+        servicos: servicosArquivados,
+        servico_especializado: servicosArquivados[0] || '',
+        opm_list: isParcialSemOpm ? [] : (paciente?.opm_list || []),
+        tipoOpm: isParcialSemOpm ? '' : (paciente?.tipoOpm || ''),
+        evolucoes: evolucoesParaArquivar
+      }
     },
     arquivadoPor: userUsername,
     arquivadoPorNome: userNome,
@@ -720,29 +774,63 @@ export async function moverPacienteParaArquivoMorto(
     saveLocalArquivoMorto(locais);
   }
 
-  // 2. Remove os registros ativos da coleção pacientes
-  const idsParaRemover = Array.isArray(paciente?.ids) && paciente.ids.length > 0
-    ? paciente.ids
-    : paciente?.id ? [paciente.id] : [];
+  // 2. Atualiza / remove os registros ativos da coleção pacientes
+  const idsParaRemover = isParcialSemOpm
+    ? registrosOutros.map((r) => r.id).filter(Boolean)
+    : (Array.isArray(paciente?.ids) && paciente.ids.length > 0
+        ? paciente.ids
+        : paciente?.id ? [paciente.id] : []);
 
   if (db) {
     for (const id of idsParaRemover) {
       await deleteDoc(doc(db, 'pacientes', id));
     }
+    if (isParcialSemOpm && registrosOpm.length > 0) {
+      // Mantém apenas as evoluções de OPM nos registros OPM ativos
+      for (let idx = 0; idx < registrosOpm.length; idx++) {
+        const regOpm = registrosOpm[idx];
+        if (!regOpm?.id) continue;
+        await updateDoc(doc(db, 'pacientes', regOpm.id), {
+          evolucoes: idx === 0 ? sanitizeValue(evolucoesParaManterOpm) : [],
+          updatedAt: nowIso,
+          atualizadoPor: userUsername,
+          atualizadoPorNome: userNome,
+          atualizadoEm: nowIso
+        });
+      }
+    }
   } else {
-    const locaisPac = getLocalPacientes();
-    const filtrados = locaisPac.filter((p) => !idsParaRemover.includes(p.id));
-    saveLocalPacientes(filtrados);
+    let locaisPac = getLocalPacientes().filter((p) => !idsParaRemover.includes(p.id));
+    if (isParcialSemOpm && registrosOpm.length > 0) {
+      const opmIds = registrosOpm.map((r) => r.id);
+      locaisPac = locaisPac.map((p) => {
+        if (!opmIds.includes(p.id)) return p;
+        const isFirst = p.id === registrosOpm[0].id;
+        return {
+          ...p,
+          evolucoes: isFirst ? evolucoesParaManterOpm : [],
+          updatedAt: nowIso,
+          atualizadoPor: userUsername,
+          atualizadoPorNome: userNome,
+          atualizadoEm: nowIso
+        };
+      });
+    }
+    saveLocalPacientes(locaisPac);
     window.dispatchEvent(new Event('storage'));
   }
 
   // 3. Registra auditoria completa com todas as informações
   try {
-    const totalServ = registrosOriginais.length;
-    const totalEvo = evolucoes.length;
+    const totalServ = registrosParaArquivar.length || servicosArquivados.length;
+    const totalEvo = evolucoesParaArquivar.length;
+    const servicosTexto = servicosArquivados.length > 0 ? servicosArquivados.join(', ') : 'Não informado';
+    const notaParcial = isParcialSemOpm
+      ? ` Solicitação de OPM e ${evolucoesParaManterOpm.length} evolução(ões) de OPM mantidas ativas na lista principal.`
+      : '';
     await registrarAuditoria({
       acao: 'ARQUIVO_MORTO_ENTRADA',
-      detalhes: `Paciente "${nomeFinal}" (DN: ${dnFinal || 'Não informada'}) foi direcionado ao Arquivo Morto em ${dataSaidaFinal}. Pasta física: ${pastaFinal || 'Não informada'}. Observações: ${obsFinal || 'Nenhuma observação informada'}. Histórico preservado: ${totalServ} serviço(s) e ${totalEvo} evolução(ões).`,
+      detalhes: `Paciente "${nomeFinal}" (DN: ${dnFinal || 'Não informada'}) teve o(s) serviço(s) [${servicosTexto}] direcionado(s) ao Arquivo Morto em ${dataSaidaFinal}. Pasta física: ${pastaFinal || 'Não informada'}. Observações: ${obsFinal || 'Nenhuma observação informada'}. Histórico arquivado: ${totalServ} serviço(s) e ${totalEvo} evolução(ões).${notaParcial}`,
       pacienteId: archiveId,
       pacienteNome: nomeFinal,
       usuario,
@@ -751,8 +839,10 @@ export async function moverPacienteParaArquivoMorto(
         dn: dnFinal,
         dataSaida: dataSaidaFinal,
         pasta: pastaFinal,
+        servicos: servicosArquivados,
         observacoes: obsFinal,
         origem: 'paciente_ativo',
+        modoArquivamento: isParcialSemOpm ? 'parcial_sem_opm' : 'completo',
         totalRegistros: totalServ,
         totalEvolucoes: totalEvo
       }
@@ -783,6 +873,11 @@ export async function salvarArquivoMorto(registroData, usuario = null) {
   const dataSaidaFinal = (registroData.dataSaida || '').trim();
   const pastaFinal = (registroData.pasta || '').trim().toUpperCase();
   const obsFinal = (registroData.observacoes || '').trim();
+  const servicosFinal = Array.isArray(registroData.servicos)
+    ? registroData.servicos.filter(Boolean)
+    : registroData.servico_especializado
+      ? [registroData.servico_especializado]
+      : [];
 
   const payload = sanitizeValue({
     ...registroData,
@@ -792,6 +887,8 @@ export async function salvarArquivoMorto(registroData, usuario = null) {
     dataNascimento: dnFinal,
     dataSaida: dataSaidaFinal,
     pasta: pastaFinal,
+    servicos: servicosFinal,
+    servico_especializado: servicosFinal[0] || registroData.servico_especializado || '',
     observacoes: obsFinal,
     origem: registroData.origem || 'manual',
     arquivadoPor: registroData.arquivadoPor || userUsername,
@@ -819,11 +916,12 @@ export async function salvarArquivoMorto(registroData, usuario = null) {
   }
 
   try {
+    const servTxt = servicosFinal.length > 0 ? servicosFinal.join(', ') : 'Não informado';
     await registrarAuditoria({
       acao: isNovo ? 'ARQUIVO_MORTO_CADASTRO' : 'ARQUIVO_MORTO_EDICAO',
       detalhes: isNovo
-        ? `Registro manual criado no Arquivo Morto para "${nomeFinal}" (DN: ${dnFinal || 'Não informada'}), Data de Saída: ${dataSaidaFinal}, Pasta: ${pastaFinal || 'Não informada'}. Observações: ${obsFinal || 'Nenhuma observação informada'}.`
-        : `Registro no Arquivo Morto de "${nomeFinal}" (DN: ${dnFinal || 'Não informada'}) foi atualizado. Data de Saída: ${dataSaidaFinal}, Pasta: ${pastaFinal || 'Não informada'}. Observações: ${obsFinal || 'Nenhuma observação informada'}.`,
+        ? `Registro manual criado no Arquivo Morto para "${nomeFinal}" (DN: ${dnFinal || 'Não informada'}), Tipo(s): [${servTxt}], Data de Saída: ${dataSaidaFinal}, Pasta: ${pastaFinal || 'Não informada'}. Observações: ${obsFinal || 'Nenhuma observação informada'}.`
+        : `Registro no Arquivo Morto de "${nomeFinal}" (DN: ${dnFinal || 'Não informada'}) foi atualizado. Tipo(s): [${servTxt}], Data de Saída: ${dataSaidaFinal}, Pasta: ${pastaFinal || 'Não informada'}. Observações: ${obsFinal || 'Nenhuma observação informada'}.`,
       pacienteId: id,
       pacienteNome: nomeFinal,
       usuario,
@@ -832,6 +930,7 @@ export async function salvarArquivoMorto(registroData, usuario = null) {
         dn: dnFinal,
         dataSaida: dataSaidaFinal,
         pasta: pastaFinal,
+        servicos: servicosFinal,
         observacoes: obsFinal,
         origem: payload.origem
       }

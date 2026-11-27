@@ -52,6 +52,8 @@ export default function PatientList({
   const [filterServico, setFilterServico] = useState('');
   const [filterCid, setFilterCid] = useState('');
   const [filterMunicipio, setFilterMunicipio] = useState('');
+  const [filterDataInicio, setFilterDataInicio] = useState('');
+  const [filterDataFim, setFilterDataFim] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [ordenacao, setOrdenacao] = useState('entrada_recente');
   const [agruparPorPaciente, setAgruparPorPaciente] = useState(() => {
@@ -151,6 +153,26 @@ export default function PatientList({
       const munTerm = filterMunicipio.toUpperCase().trim();
       const matchMun = !munTerm || (p.municipio && p.municipio.toUpperCase().includes(munTerm));
 
+      // Filtro por Período (Data de Entrada)
+      let matchPeriodo = true;
+      if (filterDataInicio || filterDataFim) {
+        const tsEntrada = parseDataTimestamp(p.data_entrada || p.dataEntrada);
+        if (!tsEntrada) {
+          matchPeriodo = false;
+        } else {
+          if (filterDataInicio) {
+            const [y, m, d] = filterDataInicio.split('-').map(Number);
+            const tsIni = new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
+            if (tsEntrada < tsIni) matchPeriodo = false;
+          }
+          if (filterDataFim && matchPeriodo) {
+            const [y, m, d] = filterDataFim.split('-').map(Number);
+            const tsFim = new Date(y, m - 1, d, 23, 59, 59, 999).getTime();
+            if (tsEntrada > tsFim) matchPeriodo = false;
+          }
+        }
+      }
+
       // Busca Geral
       const search = searchTerm.toUpperCase().trim();
       const matchSearch = !search || (
@@ -168,7 +190,7 @@ export default function PatientList({
         ))
       );
 
-      return matchServ && matchCid && matchMun && matchSearch;
+      return matchServ && matchCid && matchMun && matchPeriodo && matchSearch;
     });
 
     return [...filtrados].sort((a, b) => {
@@ -209,7 +231,7 @@ export default function PatientList({
           return (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' });
       }
     });
-  }, [pacientesBase, currentServico, filterCid, filterMunicipio, searchTerm, ordenacao]);
+  }, [pacientesBase, currentServico, filterCid, filterMunicipio, filterDataInicio, filterDataFim, searchTerm, ordenacao]);
 
   // Contagens dinâmicas para a exibição atual
   const totalServicosExibidos = useMemo(() => {
@@ -224,6 +246,8 @@ export default function PatientList({
     setFilterServico('');
     setFilterCid('');
     setFilterMunicipio('');
+    setFilterDataInicio('');
+    setFilterDataFim('');
     setSearchTerm('');
     setOrdenacao('entrada_recente');
     if (onSelectServicoFilter) {
@@ -326,16 +350,42 @@ export default function PatientList({
 
         </div>
 
-        {/* Busca rápida */}
-        <div className="relative pt-2 border-t border-slate-100">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-5" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Pesquisa rápida por nome, CPF, telefone, município, OPM ou observações..."
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+        {/* Busca rápida e Filtro por Período (Data de Entrada) */}
+        <div className="pt-2 border-t border-slate-100 grid grid-cols-1 lg:grid-cols-12 gap-3 items-end">
+          <div className="relative lg:col-span-6">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Pesquisa rápida por nome, CPF, telefone, município, OPM ou observações..."
+              className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50/70 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="lg:col-span-3">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">
+              Entrada (De)
+            </label>
+            <input
+              type="date"
+              value={filterDataInicio}
+              onChange={(e) => setFilterDataInicio(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="lg:col-span-3">
+            <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1 tracking-wider">
+              Entrada (Até)
+            </label>
+            <input
+              type="date"
+              value={filterDataFim}
+              onChange={(e) => setFilterDataFim(e.target.value)}
+              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
       </div>
 

@@ -208,6 +208,12 @@ export default function AuditLogsModal({ isOpen, onClose }) {
                             <span><strong>Pasta:</strong> {item.dadosArquivoMorto.pasta}</span>
                           </>
                         )}
+                        {Array.isArray(item.dadosArquivoMorto.servicos) && item.dadosArquivoMorto.servicos.length > 0 && (
+                          <>
+                            <span>•</span>
+                            <span><strong>Solicitação(ões):</strong> {item.dadosArquivoMorto.servicos.join(', ')}</span>
+                          </>
+                        )}
                         {item.dadosArquivoMorto.observacoes && (
                           <>
                             <span>•</span>
